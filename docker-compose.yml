@@ -1,0 +1,63 @@
+services:
+  claude:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        USER_UID: "${USER_UID:-501}"
+        USER_GID: "${USER_GID:-501}"
+    image: claude-server:latest
+    container_name: claude-workspace
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    environment:
+      TERM: xterm-256color
+    volumes:
+      - ./workspace/claude-workspace/claude-config:/home/claude/.claude
+      - ./workspace/claude-workspace/skills/user:/home/claude/.claude/skills/user
+      - ./workspace/claude-workspace/projects:/workspace/projects
+      - ${HOME}/.gitconfig:/home/claude/.gitconfig:ro
+      - ${HOME}/.ssh:/tmp/host-ssh:ro
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        USER_UID: "${USER_UID:-501}"
+        USER_GID: "${USER_GID:-501}"
+    image: claude-server:latest
+    container_name: claude-server
+    working_dir: /workspace/server
+    command: ["node", "src/index.js"]
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-3010}:3010"
+    env_file:
+      - path: ./server/.env
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "3010"
+      HOST: "0.0.0.0"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      API_TOKEN: ${API_TOKEN:-}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-30}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CLAUDE_BIN: ${CLAUDE_BIN:-claude}
+      CLAUDE_CWD: ${CLAUDE_CWD:-/workspace/projects}
+      CLAUDE_TIMEOUT_MS: ${CLAUDE_TIMEOUT_MS:-120000}
+      CLAUDE_MAX_INPUT_CHARS: ${CLAUDE_MAX_INPUT_CHARS:-50000}
+    restart: unless-stopped
+    volumes:
+      - ./workspace/claude-workspace/claude-config:/home/claude/.claude
+      - ./workspace/claude-workspace/skills/user:/home/claude/.claude/skills/user
+      - ./workspace/claude-workspace/projects:/workspace/projects
+      - ./server:/workspace/server
+      - server_node_modules:/workspace/server/node_modules
+
+volumes:
+  server_node_modules:

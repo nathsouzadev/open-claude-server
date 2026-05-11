@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+
+# Secrets & env (root-level catch-all)
+.env
+**/.env
+**/.env.local
+**/credentials
+**/*.key
+**/*.pem
+!**/.env.example
+
+# Docker overrides
+docker-compose.override.yml
+**/docker-compose.override.yml
+docker/.env
+
+# Server
+server/node_modules/
+server/.env
+server/npm-debug.log*
+server/dist/
+
+# Claude Code credentials (defense in depth — primary rules in workspace/claude-workspace/.gitignore)
+**/.credentials.json
+**/.credentials

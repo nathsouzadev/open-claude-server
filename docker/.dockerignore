@@ -1,0 +1,13 @@
+projects/
+**/node_modules/
+**/.git/
+**/.next/
+**/dist/
+**/build/
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.DS_Store
+docker/.env
+docker-compose.override.yml

@@ -1,0 +1,43 @@
+projects/*/
+.env
+**/.env
+**/.env.local
+**/credentials
+**/*.key
+**/*.pem
+.DS_Store
+
+# Claude Code auth & session state (never commit)
+claude-config/.credentials.json
+claude-config/.credentials*
+claude-config/auth*
+claude-config/sessions/
+claude-config/projects/
+claude-config/statsig/
+claude-config/todos/
+claude-config/shell-snapshots/
+claude-config/.claude.json*
+claude-config/mcp-needs-auth-cache.json
+claude-config/history.jsonl
+claude-config/session-env/
+claude-config/cache/
+claude-config/backups/
+claude-config/plugins/marketplaces/
+claude-config/plugins/cache/
+claude-config/plugins/data/
+claude-config/plugins/install-counts-cache.json
+claude-config/.last-cleanup
+# Keep claude-config/plugins/known_marketplaces.json and installed_plugins.json versioned (bootstrap)
+
+# Local-only manifest (user copies projects.yml.example -> projects.yml and edits)
+projects.yml
+
+# Docker
+docker/.env
+docker-compose.override.yml
+**/docker-compose.override.yml
+
+# Server
+server/node_modules/
+server/.env
+server/npm-debug.log*

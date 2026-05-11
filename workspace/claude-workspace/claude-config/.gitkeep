@@ -1,0 +1,6 @@
+# claude-config/ holds your Claude Code home directory (settings.json, hooks/,
+# agents/, skills/, commands/, plugins/, etc).
+#
+# In the public boilerplate this directory is intentionally empty.
+# See the top-level README.md (section "Importing your own config") for how
+# to populate it from your existing ~/.claude/ directory.

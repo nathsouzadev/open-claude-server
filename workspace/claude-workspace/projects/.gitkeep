@@ -1,0 +1,2 @@
+# projects/ is populated by setup.sh from projects.yml.
+# All cloned repos are gitignored.

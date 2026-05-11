@@ -1,0 +1,13 @@
+# Copy this file to projects.yml and edit. projects.yml is gitignored
+# (so each user keeps their own private list of repos).
+#
+# setup.sh reads projects.yml and clones each entry into projects/<name>/.
+
+projects:
+  - name: example-repo
+    repo: https://github.com/octocat/Hello-World.git
+    branch: master
+
+  # - name: my-private-repo
+  #   repo: git@github.com:my-user/my-private-repo.git
+  #   branch: main

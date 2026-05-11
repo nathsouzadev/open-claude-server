@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>claude-server · painel</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>claude-server</h1>
+      <span id="health" class="badge">…</span>
+    </header>
+
+    <main>
+      <aside>
+        <section>
+          <div class="row">
+            <h2>Agentes</h2>
+            <button id="new-agent">+ novo</button>
+          </div>
+          <ul id="agents-list" class="tree"></ul>
+        </section>
+
+        <section>
+          <h2>Projetos</h2>
+          <ul id="projects-list" class="tree"></ul>
+        </section>
+      </aside>
+
+      <section class="editor">
+        <div id="empty" class="empty">selecione um agente ou crie um novo</div>
+
+        <div id="editor" hidden>
+          <div class="row">
+            <strong id="editor-title"></strong>
+            <span id="editor-scope" class="badge"></span>
+            <span class="spacer"></span>
+            <button id="save-btn">salvar</button>
+            <button id="run-btn">testar</button>
+            <button id="delete-btn" class="danger">deletar</button>
+          </div>
+          <textarea id="editor-textarea" spellcheck="false"></textarea>
+          <details id="run-output" hidden>
+            <summary>resposta do agente</summary>
+            <pre id="run-output-pre"></pre>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="new-dialog">
+      <form method="dialog">
+        <h3>Novo agente</h3>
+        <label>
+          Escopo
+          <select id="new-scope"></select>
+        </label>
+        <label>
+          Nome <small>(a-z, 0-9, hífen)</small>
+          <input id="new-name" pattern="[a-z0-9][a-z0-9-]*" required />
+        </label>
+        <div class="row right">
+          <button value="cancel">cancelar</button>
+          <button id="new-create" value="default">criar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
