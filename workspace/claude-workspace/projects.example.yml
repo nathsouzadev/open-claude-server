@@ -4,10 +4,6 @@
 # setup.sh reads projects.yml and clones each entry into projects/<name>/.
 
 projects:
-  - name: example-repo
-    repo: https://github.com/octocat/Hello-World.git
-    branch: master
-
-  # - name: my-private-repo
-  #   repo: git@github.com:my-user/my-private-repo.git
-  #   branch: main
+  - name: open-claude-server
+    repo: https://github.com/nathsouzadev/open-claude-server
+    branch: main

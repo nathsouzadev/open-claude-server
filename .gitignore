@@ -8,7 +8,6 @@
 **/credentials
 **/*.key
 **/*.pem
-!**/.env.example
 
 # Docker overrides
 docker-compose.override.yml

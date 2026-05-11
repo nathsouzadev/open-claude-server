@@ -1,158 +1,158 @@
 # open-claude-server
 
-Boilerplate público para rodar o **Claude Code em Docker** com um wrapper HTTP, UI web e bot Slack opcional. Clone, importe sua config pessoal, e tenha o mesmo ambiente do Claude Code (skills, hooks, agents, plugins) em qualquer máquina, sem expor segredos no repo.
+Public boilerplate for running **Claude Code in Docker** with an HTTP wrapper, web UI, and optional Slack bot. Clone it, import your personal config, and get the same Claude Code environment (skills, hooks, agents, plugins) on any machine — without leaking secrets into the repo.
 
-> Esta é a versão "vazia" do [`claude-server`](../). Não traz projetos, agents ou credenciais — só a estrutura. Você popula com o que for seu.
+> This is the "empty" version of `claude-server`. No projects, agents or credentials shipped — only the scaffolding. You fill it with what's yours.
 
-## Estrutura
+## Structure
 
 ```
 open-claude-server/
 ├── docker/                       # Dockerfile + entrypoint
-├── server/                       # HTTP wrapper do claude CLI + UI web + bot Slack
+├── server/                       # HTTP wrapper for the claude CLI + web UI + Slack bot
 │   ├── src/
-│   ├── public/                   # UI vanilla JS em /ui
+│   ├── public/                   # vanilla JS UI at /ui
 │   ├── package.json
-│   └── env.example               # → renomeie para .env e preencha
+│   └── env.example               # → rename to .env and fill in
 ├── workspace/claude-workspace/
-│   ├── claude-config/            # ← VAZIO; você popula com sua config (~/.claude/)
-│   ├── skills/user/              # ← VAZIO; suas skills pessoais
-│   ├── projects/                 # ← clonado pelo setup.sh (gitignored)
-│   ├── projects.yml.example      # → renomeie para projects.yml e edite
+│   ├── claude-config/            # ← EMPTY; fill with your config (~/.claude/)
+│   ├── skills/user/              # ← EMPTY; your personal skills
+│   ├── projects/                 # ← cloned by setup.sh (gitignored)
+│   ├── projects.example.yml      # → rename to projects.yml and edit
 │   ├── Makefile
 │   └── setup.sh
 ├── docker-compose.yml
 └── README.md
 ```
 
-Dois serviços no `docker-compose.yml`:
+Two services in `docker-compose.yml`:
 
-- **`claude`** — shell interativo (`docker compose run --rm claude`)
-- **`server`** — HTTP wrapper expondo `claude` em `127.0.0.1:3010`, UI em `/ui`, bot Slack opcional
+- **`claude`** — interactive shell (`docker compose run --rm claude`)
+- **`server`** — HTTP wrapper exposing `claude` on `127.0.0.1:3010`, UI at `/ui`, optional Slack bot
 
-## Pré-requisitos
+## Requirements
 
 - Docker + Docker Compose
-- (Opcional) Claude CLI no host pra teste local
+- (Optional) Claude CLI on the host for local testing
 
-## Setup numa máquina nova
+## Setup on a new machine
 
 ```bash
-git clone <este-repo> open-claude-server
+git clone <this-repo> open-claude-server
 cd open-claude-server
 
-# 1. Materializar arquivos de exemplo
+# 1. Materialize example files
 cp server/env.example server/.env
-cp workspace/claude-workspace/projects.yml.example workspace/claude-workspace/projects.yml
+cp workspace/claude-workspace/projects.example.yml workspace/claude-workspace/projects.yml
 
-# 2. (Opcional) Importar sua config — ver seção abaixo
-./scripts/import-config.sh        # ou copiar manualmente; instruções abaixo
+# 2. (Optional) Import your config — see section below
+./scripts/import-config.sh        # or copy manually; instructions below
 
-# 3. Rodar bootstrap (copia config pro ~/.claude do host se quiser, e clona projetos)
+# 3. Run bootstrap (copies config into host ~/.claude if you want, and clones projects)
 ./workspace/claude-workspace/setup.sh
 
-# 4. Subir
+# 4. Bring it up
 docker compose up -d --build
 
-# 5. Shell interativo
+# 5. Interactive shell
 docker compose run --rm claude
 
-# 6. Dentro do container, autenticar (uma vez por máquina)
+# 6. Inside the container, authenticate (once per machine)
 claude login
-# Credenciais ficam em workspace/claude-workspace/claude-config/.credentials.json (gitignored)
+# Credentials land in workspace/claude-workspace/claude-config/.credentials.json (gitignored)
 ```
 
-## Importando sua própria config
+## Importing your own config
 
-`workspace/claude-workspace/claude-config/` é o equivalente do `~/.claude/` que vai ser montado em `/home/claude/.claude/` dentro do container. No boilerplate ele vem **vazio** — você precisa popular com a sua config.
+`workspace/claude-workspace/claude-config/` is the equivalent of `~/.claude/` and gets mounted at `/home/claude/.claude/` inside the container. In the boilerplate it ships **empty** — you populate it with your own config.
 
-### Opção A — Importar do `~/.claude/` existente
+### Option A — Import from your existing `~/.claude/`
 
-Se você já usa Claude Code no host, copie só o que é portável e seguro:
+If you already use Claude Code on the host, copy only what's portable and safe:
 
 ```bash
 DEST=workspace/claude-workspace/claude-config
 
-# Arquivos top-level de instruções (CLAUDE.md, RTK.md, etc.)
+# Top-level instruction files (CLAUDE.md, RTK.md, etc.)
 cp -a ~/.claude/CLAUDE.md       $DEST/ 2>/dev/null || true
 cp -a ~/.claude/RTK.md          $DEST/ 2>/dev/null || true
 
-# settings.json — REVISE antes de commitar; remova caminhos absolutos do host
+# settings.json — REVIEW before committing; remove host-absolute paths
 cp -a ~/.claude/settings.json   $DEST/settings.example.json
-# (setup.sh substitui __HOME__ pelo $HOME real ao copiar de volta)
+# (setup.sh replaces __HOME__ with the real $HOME when copying back)
 
 # Hooks, agents, commands
 cp -a ~/.claude/hooks    $DEST/ 2>/dev/null || true
 cp -a ~/.claude/agents   $DEST/ 2>/dev/null || true
 cp -a ~/.claude/commands $DEST/ 2>/dev/null || true
 
-# Plugins instalados (manifests, NÃO o cache de runtime)
+# Installed plugins (manifests, NOT the runtime cache)
 mkdir -p $DEST/plugins
 cp -a ~/.claude/plugins/known_marketplaces.json $DEST/plugins/ 2>/dev/null || true
 cp -a ~/.claude/plugins/installed_plugins.json  $DEST/plugins/ 2>/dev/null || true
 
-# MCP servers (revise — pode ter tokens)
+# MCP servers (review — may contain tokens)
 cp -a ~/.claude/mcp.json $DEST/ 2>/dev/null || true
 ```
 
-> ⚠️ **Antes de commitar**, revise `settings.json` e `mcp.json` por:
-> - Caminhos absolutos do seu host (`/Users/<você>/...`) → use `$HOME` ou `__HOME__`
-> - Tokens, API keys, OAuth secrets → mova pra `server/.env` ou variáveis do shell
-> - Referências a projetos privados que não existem na máquina destino
+> ⚠️ **Before committing**, review `settings.json` and `mcp.json` for:
+> - Host-absolute paths (`/Users/<you>/...`) → use `$HOME` or `__HOME__`
+> - Tokens, API keys, OAuth secrets → move them to `server/.env` or shell env vars
+> - References to private projects that don't exist on the target machine
 >
-> O `.gitignore` já bloqueia `.credentials.json`, `sessions/`, `statsig/`, `cache/`,
-> `backups/`, `history.jsonl`, `plugins/cache/` e `plugins/data/` — mas leia o diff
-> antes do `git add .` mesmo assim.
+> `.gitignore` already blocks `.credentials.json`, `sessions/`, `statsig/`, `cache/`,
+> `backups/`, `history.jsonl`, `plugins/cache/` and `plugins/data/` — but read the diff
+> before `git add .` anyway.
 
-### Opção B — Começar do zero
+### Option B — Start from scratch
 
-Não precisa importar nada. Suba o container, rode `claude login`, e configure pela UI / pelos comandos do próprio Claude Code:
+You don't have to import anything. Bring the container up, run `claude login`, and configure via the UI / Claude Code's own commands:
 
 ```bash
 docker compose up -d --build
 docker compose run --rm claude
-# dentro do container:
+# inside the container:
 claude login
 /plugin marketplace add ...
 /plugin install ...
 ```
 
-A config gerada cai em `claude-config/` automaticamente (volume montado), então fica versionada no seu fork privado.
+The generated config lands in `claude-config/` automatically (mounted volume), so it gets versioned in your private fork.
 
-## Importando seus projetos
+## Importing your projects
 
-Edite `workspace/claude-workspace/projects.yml`:
+Edit `workspace/claude-workspace/projects.yml`:
 
 ```yaml
 projects:
-  - name: meu-app
-    repo: git@github.com:meu-user/meu-app.git
+  - name: my-app
+    repo: git@github.com:my-user/my-app.git
     branch: main
-  - name: meu-monorepo
-    repo: https://github.com/meu-org/meu-monorepo.git
+  - name: my-monorepo
+    repo: https://github.com/my-org/my-monorepo.git
     branch: develop
 ```
 
-Rode `./workspace/claude-workspace/setup.sh` (ou `make` no Makefile) — clona em `workspace/claude-workspace/projects/`, que está gitignored.
+Run `./workspace/claude-workspace/setup.sh` (or `make` from the Makefile) — it clones into `workspace/claude-workspace/projects/`, which is gitignored.
 
-`projects.yml` em si **também está gitignored** — cada usuário do fork mantém sua própria lista privada. O que vai pro repo é só `projects.yml.example`.
+`projects.yml` itself is **also gitignored** — every fork user keeps their own private list. The only thing in the repo is `projects.example.yml`.
 
-## O que é portável vs local
+## Portable vs local
 
-| Camada            | Onde mora                                                  | Versionado?   |
-| ----------------- | ---------------------------------------------------------- | ------------- |
-| Config + skills   | `workspace/claude-workspace/claude-config/`                | ✅ no seu fork |
-| Lista de projetos | `workspace/claude-workspace/projects.yml`                  | ❌ gitignored  |
-| Credenciais OAuth | `claude-config/.credentials.json` (gerado por `claude login` no container) | ❌ gitignored  |
-| `.env` do server  | `server/.env`                                              | ❌ gitignored  |
-| Projetos clonados | `workspace/claude-workspace/projects/`                     | ❌ gitignored  |
-| SSH/gitconfig     | `~/.ssh`, `~/.gitconfig` (host, montado read-only)         | ❌ nunca       |
+| Layer             | Where it lives                                             | Versioned?      |
+| ----------------- | ---------------------------------------------------------- | --------------- |
+| Config + skills   | `workspace/claude-workspace/claude-config/`                | ✅ in your fork |
+| Project list      | `workspace/claude-workspace/projects.yml`                  | ❌ gitignored   |
+| OAuth credentials | `claude-config/.credentials.json` (created by `claude login` in container) | ❌ gitignored |
+| Server `.env`     | `server/.env`                                              | ❌ gitignored   |
+| Cloned projects   | `workspace/claude-workspace/projects/`                     | ❌ gitignored   |
+| SSH/gitconfig     | `~/.ssh`, `~/.gitconfig` (host, mounted read-only)         | ❌ never        |
 
-Cada máquina/fork tem suas credenciais. O boilerplate público só carrega estrutura e exemplos.
+Every machine/fork has its own credentials. The public boilerplate ships only structure and examples.
 
 ## HTTP server
 
-Bind padrão: `127.0.0.1:3010` (localhost-only). Auth e rate-limit **off** por padrão — ative antes de expor publicamente.
+Default bind: `127.0.0.1:3010` (localhost-only). Auth and rate-limit are **off** by default — turn them on before exposing publicly.
 
 ```bash
 curl http://127.0.0.1:3010/health
@@ -161,14 +161,14 @@ curl http://127.0.0.1:3010/health
 ```bash
 curl -X POST http://127.0.0.1:3010/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"Responda apenas com PONG"}'
+  -d '{"message":"Reply only with PONG"}'
 ```
 
-UI web: abra `http://127.0.0.1:3010/ui` — lista/cria/edita/remove agents e tem botão "Run".
+Web UI: open `http://127.0.0.1:3010/ui` — list / create / edit / remove agents, with a "Run" button.
 
-Documentação completa de endpoints, sessões e variáveis: [`server/README.md`](server/README.md).
+Full endpoint, session and env var docs: [`server/README.md`](server/README.md).
 
-### Ativando auth antes de expor
+### Turning auth on before exposing
 
 ```bash
 # server/.env
@@ -176,85 +176,178 @@ AUTH_ENABLED=true
 API_TOKEN=<openssl rand -hex 32>
 ```
 
-Reinicie o `server`. Inclua `Authorization: Bearer <token>` em todas as requisições.
+Restart `server`. Include `Authorization: Bearer <token>` on every request.
 
-## Configurando um agente
+## Creating an agent
 
-Agents ficam em `workspace/claude-workspace/claude-config/agents/` (escopo global, montado em `/home/claude/.claude/agents/`). Cada agent é um `.md` com frontmatter YAML.
+Agents live in `workspace/claude-workspace/claude-config/agents/` (global scope, mounted at `/home/claude/.claude/agents/`). Each agent is a `.md` file with YAML frontmatter.
 
-Crie `workspace/claude-workspace/claude-config/agents/meu-agente.md`:
+Create `workspace/claude-workspace/claude-config/agents/my-agent.md`:
 
 ```markdown
 ---
-name: meu-agente
-description: Descrição curta — quando este agente deve ser usado
+name: my-agent
+description: Short description — when this agent should be used
 tools: Read, Bash, Edit
 model: sonnet
 ---
 
-System prompt do agente. Define personalidade, restrições, formato de resposta.
+Agent system prompt. Defines personality, constraints, response format.
 ```
 
-Ou via UI (`/ui`), ou via API (`POST /api/agents`). Detalhes em [`server/README.md`](server/README.md).
+Three ways to create one:
 
-## Conectando ao Slack (opcional)
+- **File**: drop the `.md` directly under `claude-config/agents/` as above.
+- **UI**: open `/ui`, click "New agent", fill the form.
+- **API**:
+  ```bash
+  curl -X POST http://127.0.0.1:3010/api/agents \
+    -H "Content-Type: application/json" \
+    -d '{
+      "name": "my-agent",
+      "description": "Short description",
+      "tools": ["Read", "Bash", "Edit"],
+      "model": "sonnet",
+      "prompt": "Agent system prompt here."
+    }'
+  ```
 
-O `server` inclui um bot Slack (Socket Mode) que roteia mensagens pra um agent.
+Run an agent via `POST /api/agents/:name/run` with `{"message":"..."}`, via the UI's **Run** button, or by `@mentioning` it from another agent. Endpoint details in [`server/README.md`](server/README.md).
 
-### 1. Criar Slack App
+## Scheduling recurring jobs (crons)
+
+The server has a built-in cron scheduler — agents fire on a schedule, optionally posting the response to Slack. Jobs are persisted to `claude-config/scheduled_jobs.json` and survive container restarts.
+
+### Create a job
+
+```bash
+curl -X POST http://127.0.0.1:3010/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "daily-standup",
+    "expr": "0 9 * * 1-5",
+    "agent": "my-agent",
+    "message": "Summarize what changed in the repo since yesterday",
+    "destination": { "type": "slack", "channel": "#standup" },
+    "catchUp": true
+  }'
+```
+
+Fields:
+
+| Field          | Required | Notes                                                                   |
+| -------------- | -------- | ----------------------------------------------------------------------- |
+| `expr`         | yes      | Standard cron expression (5 fields). Container timezone is UTC by default. |
+| `agent`        | yes      | Agent name (must exist under `claude-config/agents/`).                  |
+| `message`      | yes      | Prompt sent to the agent on each firing.                                |
+| `name`         | no       | Friendly label; falls back to a generated id.                           |
+| `destination`  | no       | `{type:"slack", channel:"#channel"}` to post the response to Slack.     |
+| `catchUp`      | no       | If `true`, runs missed firings on container startup (within `catchUpWindowMs`). |
+
+### Manage jobs
+
+```bash
+curl http://127.0.0.1:3010/api/jobs                  # list
+curl http://127.0.0.1:3010/api/jobs/<id>             # detail
+curl -X POST http://127.0.0.1:3010/api/jobs/<id>/run # fire now
+curl -X DELETE http://127.0.0.1:3010/api/jobs/<id>   # remove
+```
+
+## Syncing Claude memory from host to container
+
+When `auto-memory` is on, Claude Code writes per-project `MEMORY.md` files into `~/.claude/projects/<encoded-project-path>/memory/`. The path is derived from your project dir on the **host** — so memory written on the host won't show up inside the container (and vice-versa) unless you bind-mount it.
+
+`docker-compose.yml` already wires this up:
+
+```yaml
+- ${PROJECT_MEMORY_HOST_DIR:-${HOME}/.claude/projects/-Users-<you>-Documents-Projects-open-claude-server/memory}:/home/claude/.claude/projects/-workspace-projects/memory
+```
+
+The container always reads/writes memory from the **`-workspace-projects`** encoding (because `CLAUDE_CWD=/workspace/projects` inside). The host side defaults to the encoding of *this* clone path, which only matches if your clone lives at `~/Documents/Projects/open-claude-server` for user `<you>`.
+
+### When you need to override
+
+If your clone lives somewhere else, or you want to reuse memory written by Claude Code running directly on the host against a different project, set `PROJECT_MEMORY_HOST_DIR` in `server/.env`:
+
+```bash
+# server/.env
+PROJECT_MEMORY_HOST_DIR=/Users/me/.claude/projects/-Users-me-code-my-project/memory
+```
+
+Find the right encoding by listing `~/.claude/projects/` on the host — directory names there mirror the absolute path with `/` replaced by `-`.
+
+### One-shot copy (instead of a live mount)
+
+If you'd rather seed the container's memory once without keeping it in sync:
+
+```bash
+# from the host
+SRC=~/.claude/projects/-Users-me-code-my-project/memory
+DST=workspace/claude-workspace/claude-config/projects/-workspace-projects/memory
+mkdir -p "$DST"
+cp -a "$SRC"/. "$DST"/
+```
+
+Then remove (or leave) the `PROJECT_MEMORY_HOST_DIR` bind line — the files now live under `claude-config/`, which is already mounted.
+
+## Connecting to Slack (optional)
+
+`server` ships a Slack bot (Socket Mode) that routes messages to an agent.
+
+### 1. Create a Slack App
 
 1. https://api.slack.com/apps → **Create New App** → **From scratch**
-2. **Socket Mode** → habilite + gere **App-Level Token** com scope `connections:write` → guarda como `SLACK_APP_TOKEN` (`xapp-...`)
+2. **Socket Mode** → enable + generate an **App-Level Token** with scope `connections:write` → save as `SLACK_APP_TOKEN` (`xapp-...`)
 3. **OAuth & Permissions** → Bot Token Scopes:
    - `app_mentions:read`, `chat:write`, `im:history`, `im:read`, `im:write`
-4. **Event Subscriptions** → habilite → assine `app_mention` e `message.im`
-5. **App Home** → habilite **Messages Tab** + marque "Allow users to send Slash commands and messages from the messages tab"
-6. **Install to Workspace** → copia o **Bot User OAuth Token** (`xoxb-...`) como `SLACK_BOT_TOKEN`
+4. **Event Subscriptions** → enable → subscribe to `app_mention` and `message.im`
+5. **App Home** → enable **Messages Tab** + check "Allow users to send Slash commands and messages from the messages tab"
+6. **Install to Workspace** → copy the **Bot User OAuth Token** (`xoxb-...`) as `SLACK_BOT_TOKEN`
 
-### 2. Configurar `server/.env`
+### 2. Configure `server/.env`
 
 ```
 SLACK_ENABLED=true
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_APP_TOKEN=xapp-...
-SLACK_AGENT=meu-agente
+SLACK_AGENT=my-agent
 ```
 
-### 3. Reiniciar
+### 3. Restart
 
 ```bash
 docker compose up -d --build server
-docker compose logs -f server   # confirma "slack bot connected"
+docker compose logs -f server   # look for "slack bot connected"
 ```
 
-Mention em canal (`@bot ...`) ou DM direto pelo Messages Tab.
+Mention the bot in a channel (`@bot ...`) or DM it from the Messages Tab.
 
-## Segurança
+## Security
 
-- `claude login` roda **dentro do container** — credenciais ficam em `claude-config/.credentials.json` (gitignored)
-- macOS guarda credenciais no Keychain por padrão; rodar `claude login` no container Linux gera arquivo separado, sem depender de Keychain
-- `.gitignore` bloqueia `.env`, `sessions/`, `statsig/`, `cache/`, `backups/`, `history`, plugin runtime
-- Container roda como user `claude` (UID 501), não root
-- SSH keys: copiadas pelo entrypoint pra `$HOME/.ssh` com perms `0600`
-- **Antes de commitar config importada**: revise `settings.json`, `mcp.json` e qualquer hook por caminhos absolutos, tokens ou referências privadas
+- `claude login` runs **inside the container** — credentials land in `claude-config/.credentials.json` (gitignored)
+- macOS stores credentials in Keychain by default; running `claude login` in the Linux container creates a standalone file with no Keychain dependency
+- `.gitignore` blocks `.env`, `sessions/`, `statsig/`, `cache/`, `backups/`, `history`, plugin runtime data
+- Container runs as the `claude` user (UID 501), not root
+- SSH keys: copied by the entrypoint into `$HOME/.ssh` with `0600` perms
+- **Before committing imported config**: review `settings.json`, `mcp.json` and any hooks for absolute paths, tokens or private references
 
-## Forkando
+## Forking
 
-A intenção é que você **forke** este repo, importe sua config, e mantenha seu fork **privado** (já que `claude-config/` vai ter coisas que você prefere não publicar — agents, hooks, prompts pessoais).
+The intent is for you to **fork** this repo, import your config, and keep your fork **private** (since `claude-config/` will have things you'd rather not publish — agents, hooks, personal prompts).
 
 ```bash
-gh repo fork <este-repo> --clone --remote=upstream
-git remote set-url origin git@github.com:<você>/open-claude-server.git
-# torne privado no GitHub (Settings → Danger Zone → Change visibility)
+gh repo fork <this-repo> --clone --remote=upstream
+git remote set-url origin git@github.com:<you>/open-claude-server.git
+# make it private on GitHub (Settings → Danger Zone → Change visibility)
 ```
 
-Pra puxar updates do boilerplate:
+To pull updates from the boilerplate:
 
 ```bash
 git fetch upstream
 git merge upstream/main
 ```
 
-## Licença
+## License
 
 MIT.

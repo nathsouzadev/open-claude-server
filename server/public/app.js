@@ -16,6 +16,7 @@ const el = (tag, attrs = {}, ...children) => {
 const state = {
   agents: [],
   projects: [],
+  jobs: [],
   current: null,
 };
 
@@ -66,6 +67,16 @@ const refreshProjects = async () => {
   renderNewDialogOptions();
 };
 
+const refreshJobs = async () => {
+  try {
+    const { jobs } = await api('GET', '/api/jobs');
+    state.jobs = jobs ?? [];
+  } catch {
+    state.jobs = [];
+  }
+  renderJobs();
+};
+
 const renderAgents = () => {
   const list = $('#agents-list');
   list.innerHTML = '';
@@ -111,6 +122,65 @@ const renderProjects = () => {
   }
   for (const p of state.projects) {
     list.appendChild(el('li', {}, p.slug));
+  }
+};
+
+const renderJobs = () => {
+  const list = $('#jobs-list');
+  list.innerHTML = '';
+  if (state.jobs.length === 0) {
+    list.appendChild(el('li', { class: 'group' }, '(nenhum job)'));
+    return;
+  }
+  for (const j of [...state.jobs].sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))) {
+    const label = j.name || `${j.agent} · ${j.expr}`;
+    const status = j.lastRun ? (j.lastRun.ok ? 'ok' : 'bad') : '';
+    const li = el(
+      'li',
+      { onclick: () => openJob(j.id) },
+      label,
+      el('span', { class: 'spacer' }),
+      status ? el('span', { class: 'badge ' + status }, status) : null,
+    );
+    list.appendChild(li);
+  }
+};
+
+const openJob = (id) => {
+  const j = state.jobs.find((x) => x.id === id);
+  if (!j) return;
+  const body =
+    `id:          ${j.id}\n` +
+    `nome:        ${j.name ?? '—'}\n` +
+    `cron:        ${j.expr}\n` +
+    `agente:      ${j.agent}\n` +
+    `destino:     ${j.destination ? `${j.destination.type}:${j.destination.channel}` : '—'}\n` +
+    `catch-up:    ${j.catchUp ? `sim (janela ${Math.round((j.catchUpWindowMs ?? 0) / 3600000)}h)` : 'não'}\n` +
+    `criado em:   ${j.createdAt}\n` +
+    `última exec: ${j.lastRun ? `${j.lastRun.at} (${j.lastRun.ok ? 'ok' : 'erro'})${j.lastRun.error ? ` — ${j.lastRun.error}` : ''}` : '—'}\n\n` +
+    `mensagem:\n${j.message}`;
+  $('#job-dialog-title').textContent = j.name || j.agent;
+  $('#job-dialog-body').textContent = body;
+  $('#job-delete-btn').dataset.jobId = j.id;
+  $('#job-dialog').showModal();
+};
+
+const deleteJob = async (id) => {
+  if (!confirm(`deletar job ${id}?`)) return;
+  try {
+    await api('DELETE', `/api/jobs/${encodeURIComponent(id)}`);
+    $('#job-dialog').close();
+    await refreshJobs();
+  } catch (err) {
+    alert(`falha ao deletar: ${err.message}`);
+  }
+};
+
+const renderNewJobAgents = () => {
+  const sel = $('#new-job-agent');
+  sel.innerHTML = '';
+  for (const a of [...state.agents].sort((x, y) => x.name.localeCompare(y.name))) {
+    sel.appendChild(el('option', { value: a.name }, `${a.name} (${a.scope})`));
   }
 };
 
@@ -211,10 +281,49 @@ const openNewDialog = () => {
   $('#new-dialog').showModal();
 };
 
+const openNewJobDialog = () => {
+  renderNewJobAgents();
+  $('#new-job-name').value = '';
+  $('#new-job-expr').value = '';
+  $('#new-job-message').value = '';
+  $('#new-job-channel').value = '';
+  $('#new-job-catchup').checked = false;
+  $('#new-job-dialog').showModal();
+};
+
 $('#save-btn').addEventListener('click', save);
 $('#delete-btn').addEventListener('click', remove);
 $('#run-btn').addEventListener('click', run);
 $('#new-agent').addEventListener('click', openNewDialog);
+$('#new-job').addEventListener('click', openNewJobDialog);
+$('#job-delete-btn').addEventListener('click', () => {
+  const id = $('#job-delete-btn').dataset.jobId;
+  if (id) deleteJob(id);
+});
+
+$('#new-job-dialog').addEventListener('close', async () => {
+  if ($('#new-job-dialog').returnValue !== 'default') return;
+  const name = $('#new-job-name').value.trim();
+  const expr = $('#new-job-expr').value.trim();
+  const agent = $('#new-job-agent').value;
+  const message = $('#new-job-message').value.trim();
+  const channel = $('#new-job-channel').value.trim();
+  const catchUp = $('#new-job-catchup').checked;
+  if (!expr || !agent || !message) {
+    alert('cron, agente e mensagem são obrigatórios');
+    return;
+  }
+  const body = { expr, agent, message };
+  if (name) body.name = name;
+  if (channel) body.destination = { type: 'slack', channel };
+  if (catchUp) body.catchUp = true;
+  try {
+    await api('POST', '/api/jobs', body);
+    await refreshJobs();
+  } catch (err) {
+    alert(`falha ao criar job: ${err.message}\n${JSON.stringify(err.data ?? {}, null, 2)}`);
+  }
+});
 
 $('#new-dialog').addEventListener('close', async () => {
   if ($('#new-dialog').returnValue !== 'default') return;
@@ -233,5 +342,5 @@ $('#new-dialog').addEventListener('close', async () => {
 });
 
 (async () => {
-  await Promise.all([refreshHealth(), refreshProjects(), refreshAgents()]);
+  await Promise.all([refreshHealth(), refreshProjects(), refreshAgents(), refreshJobs()]);
 })();

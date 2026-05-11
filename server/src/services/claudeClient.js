@@ -12,13 +12,74 @@ export class ClaudeError extends Error {
   }
 }
 
+let inFlight = 0;
+const waiters = [];
+
+const acquireSlot = (signal) =>
+  new Promise((resolve, reject) => {
+    const tryRun = () => {
+      if (inFlight < config.claude.maxConcurrency) {
+        inFlight += 1;
+        resolve(release);
+        return true;
+      }
+      return false;
+    };
+
+    const release = () => {
+      inFlight -= 1;
+      const next = waiters.shift();
+      if (next) next();
+    };
+
+    if (tryRun()) return;
+
+    let settled = false;
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      const i = waiters.indexOf(onReady);
+      if (i >= 0) waiters.splice(i, 1);
+      clearTimeout(timer);
+      reject(new ClaudeError('claude queue aborted', { kind: 'aborted' }));
+    };
+    const onReady = () => {
+      if (settled) return;
+      if (signal?.aborted) return onAbort();
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener?.('abort', onAbort);
+      if (!tryRun()) waiters.unshift(onReady);
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      const i = waiters.indexOf(onReady);
+      if (i >= 0) waiters.splice(i, 1);
+      signal?.removeEventListener?.('abort', onAbort);
+      reject(new ClaudeError('claude queue wait timeout', { kind: 'queue_timeout' }));
+    }, config.claude.queueMaxWaitMs);
+
+    signal?.addEventListener?.('abort', onAbort, { once: true });
+    waiters.push(onReady);
+  });
+
+export const getClaudeStats = () => ({
+  inFlight,
+  queued: waiters.length,
+  maxConcurrency: config.claude.maxConcurrency,
+});
+
+const DISALLOWED_TOOLS = ['CronCreate', 'CronDelete', 'CronList', 'CronGet', 'CronUpdate'];
+
 const buildArgs = ({ sessionId }) => {
   const args = ['--print', '--output-format', 'json'];
+  args.push('--disallowed-tools', DISALLOWED_TOOLS.join(','));
   if (sessionId) args.push('--resume', sessionId);
   return args;
 };
 
-export const runClaude = ({ message, sessionId, signal, logger } = {}) => {
+const spawnClaude = ({ message, sessionId, signal, logger } = {}) => {
   return new Promise((resolve, reject) => {
     const args = buildArgs({ sessionId });
     const startedAt = Date.now();
@@ -137,6 +198,15 @@ export const runClaude = ({ message, sessionId, signal, logger } = {}) => {
     if (message) child.stdin.end(message);
     else child.stdin.end();
   });
+};
+
+export const runClaude = async (opts = {}) => {
+  const release = await acquireSlot(opts.signal);
+  try {
+    return await spawnClaude(opts);
+  } finally {
+    release();
+  }
 };
 
 let cachedHealth = { value: null, expiresAt: 0 };

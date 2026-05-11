@@ -76,6 +76,86 @@ curl -s -X POST http://127.0.0.1:3010/chat \
 | 504    | `claude_timeout`                         | CLI exceeded `CLAUDE_TIMEOUT_MS`           |
 | 500    | `internal_error` / `claude_spawn_failed` | Server bug or spawn failure                |
 
+## Scheduled jobs (cron)
+
+Persistent cron scheduler embedded in the server. Each job invokes a configured agent on a cron expression and posts the result to a Slack channel/DM via the wrapper. Jobs survive restarts (stored in `JOBS_FILE`, default `/home/claude/.claude/scheduled_jobs.json`).
+
+### Endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/jobs` | Create job |
+| `GET` | `/api/jobs` | List jobs (in-memory state, includes `running` flag) |
+| `GET` | `/api/jobs/:id` | Get one job |
+| `DELETE` | `/api/jobs/:id` | Remove job (stops cron task, in-flight Claude process keeps running until completion or timeout) |
+| `POST` | `/api/jobs/:id/run` | Trigger an immediate, ad-hoc run (returns 202; lock-respecting) |
+
+### Create payload
+
+```json
+{
+  "expr": "0 10 * * 1-5",
+  "agent": "nanisca",
+  "message": "Gere um relatório... Retorne apenas o texto.",
+  "name": "relatorio-diario-epicos",
+  "destination": { "type": "slack", "channel": "D0B26HJ6XG8", "bot": "nanisca" },
+  "catchUp": true,
+  "catchUpWindowMs": 43200000
+}
+```
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `expr` | yes | 5-field cron (min hour dom mon dow). Validated via `node-cron`. |
+| `agent` | yes | Subagent name (`name` in `agents/*.md` frontmatter) |
+| `message` | yes | Prompt content. Describe content only; the wrapper handles Slack delivery — do not include "envie via DM/Slack" or similar. |
+| `name` | no | Friendly label |
+| `destination.type` | yes if `destination` | `"slack"` only for now |
+| `destination.channel` | yes if `destination` | **Prefer D-prefix** (DM channel ID) or C-prefix (channel). User IDs (`U…`) may return `ok:true` from postMessage but deliver silently — avoid. |
+| `destination.bot` | no | Slack bot name. Defaults to the bot whose name matches `agent`; falls back to the first registered bot. |
+| `catchUp` | no | If `true`, on server startup the scheduler runs the most recent missed firing within `catchUpWindowMs`. Multiple missed firings collapse into one. |
+| `catchUpWindowMs` | no | Catch-up window in ms. Default 12h (43_200_000), max 7 days. |
+
+### Behavior
+
+- **In-memory lock per job** — if a job is already running and the cron (or `/run`) tries to fire again, the new firing is skipped with a `warn` log instead of being queued. Prevents pile-ups (e.g. when several manual triggers happen during a long run).
+- **Empty response detection** — if Claude returns an empty string (commonly because the agent tried to deliver via HTTP itself), `lastRun.ok` is set to `false`, a warning is posted to Slack, and no blank DM is sent.
+- **Prompt guard rail** — every cron prompt carries a "CRITICAL DELIVERY RULE" instructing the agent to never call delivery APIs (curl/fetch/Slack) and to return only the content text. The wrapper handles delivery.
+- **Catch-up firing logs** — on startup you'll see `"catch-up firing for missed scheduled run"` with `jobId` and `missedAt` for any job recovered.
+- **Slack post logs** — every successful Slack post emits `"slack message posted"` with `{botName, channel, ts, ok}`; failures emit `"slack postMessage failed"` with the full error.
+
+### Examples
+
+Create a job that runs weekdays at 10:00 and DMs Nanisca's bot to a known DM channel:
+
+```bash
+curl -sS -X POST http://127.0.0.1:3010/api/jobs \
+  -H 'content-type: application/json' \
+  -d '{
+    "name": "relatorio-diario",
+    "expr": "0 10 * * 1-5",
+    "agent": "nanisca",
+    "message": "Gere o relatório diário. Retorne apenas o texto em Markdown.",
+    "destination": { "type": "slack", "channel": "D0B26HJ6XG8", "bot": "nanisca" },
+    "catchUp": true
+  }'
+```
+
+List, inspect, run manually, delete:
+
+```bash
+curl -sS http://127.0.0.1:3010/api/jobs | jq
+curl -sS http://127.0.0.1:3010/api/jobs/<id> | jq
+curl -sS -X POST http://127.0.0.1:3010/api/jobs/<id>/run
+curl -sS -X DELETE http://127.0.0.1:3010/api/jobs/<id>
+```
+
+The `-X DELETE` flag is required — without it curl falls back to GET.
+
+### UI
+
+`http://127.0.0.1:3010/ui` lists jobs alongside agents, with a "+ novo" button that opens a dialog (name, cron, agent, message, Slack channel, catch-up checkbox). Clicking a job opens a detail dialog with delete.
+
 ## Environment variables
 
 | Var                      | Default             | Notes                                                           |
@@ -94,6 +174,9 @@ curl -s -X POST http://127.0.0.1:3010/chat \
 | `CLAUDE_CWD`             | `/workspace/server` | Working dir for each spawned `claude`                           |
 | `CLAUDE_TIMEOUT_MS`      | `120000`            | Per-request hard limit                                          |
 | `CLAUDE_MAX_INPUT_CHARS` | `50000`             | Validates `message` length                                      |
+| `CLAUDE_MAX_CONCURRENCY` | `3`                 | Max parallel `claude` spawns. Excess go to a queue.             |
+| `CLAUDE_QUEUE_MAX_WAIT_MS` | `30000`           | How long queued requests wait before rejecting with `claude queue wait timeout`. |
+| `JOBS_FILE`              | `/home/claude/.claude/scheduled_jobs.json` | Persistence path for cron jobs.            |
 
 ## Turning auth on (before exposing)
 

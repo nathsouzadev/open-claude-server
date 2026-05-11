@@ -10,15 +10,43 @@ import healthRouter from './routes/health.js';
 import chatRouter from './routes/chat.js';
 import agentsRouter from './routes/agents.js';
 import projectsRouter from './routes/projects.js';
+import jobsRouter from './routes/jobs.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { createSlackApp } from './slack/app.js';
+import { createSlackApps } from './slack/app.js';
+import {
+  loadPersisted as loadJobs,
+  registerSlackClient,
+  setLogger as setSchedulerLogger,
+  stopAll as stopAllJobs,
+} from './services/scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
 
 const logger = pino({ level: config.logLevel });
+
+const isSocketModeFinityError = (err) =>
+  err?.message?.includes("Unhandled event 'server explicit disconnect'") ||
+  err?.stack?.includes('finity/lib/core/StateMachine');
+
+process.on('uncaughtException', (err) => {
+  if (isSocketModeFinityError(err)) {
+    logger.warn({ err: err.message }, 'swallowed @slack/socket-mode finity crash; bolt will reconnect');
+    return;
+  }
+  logger.fatal({ err }, 'uncaughtException');
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  if (isSocketModeFinityError(reason)) {
+    logger.warn({ reason: reason?.message }, 'swallowed @slack/socket-mode finity rejection');
+    return;
+  }
+  logger.error({ reason }, 'unhandledRejection');
+});
 
 const app = express();
 
@@ -45,6 +73,7 @@ app.use(healthRouter);
 app.use(authMiddleware, rateLimitMiddleware, chatRouter);
 app.use(authMiddleware, rateLimitMiddleware, agentsRouter);
 app.use(authMiddleware, rateLimitMiddleware, projectsRouter);
+app.use(authMiddleware, rateLimitMiddleware, jobsRouter);
 
 app.use('/ui', express.static(publicDir, { fallthrough: true, index: 'index.html' }));
 app.get('/', (_req, res) => res.redirect('/ui/'));
@@ -62,21 +91,32 @@ const server = app.listen(config.port, config.host, () => {
       claudeBin: config.claude.bin,
       claudeCwd: config.claude.cwd,
       slack: config.slack.enabled,
+      slackBots: config.slack.bots.length,
+      claudeMaxConcurrency: config.claude.maxConcurrency,
     },
     'claude-workspace server listening',
   );
 });
 
-let slackApp = null;
+let slackApps = [];
 if (config.slack.enabled) {
   try {
-    slackApp = createSlackApp(logger);
-    await slackApp.start();
-    logger.info({ agent: config.slack.agent }, 'slack bot connected (socket mode)');
+    slackApps = createSlackApps(logger);
+    await Promise.all(
+      slackApps.map(async ({ app, cfg, init }) => {
+        await app.start();
+        await init();
+        registerSlackClient(cfg.name, app.client);
+        logger.info({ bot: cfg.name, agent: cfg.agent }, 'slack bot connected (socket mode)');
+      }),
+    );
   } catch (err) {
-    logger.error({ err }, 'failed to start slack bot');
+    logger.error({ err }, 'failed to start slack bots');
   }
 }
+
+setSchedulerLogger(logger);
+await loadJobs();
 
 const shutdown = (signal) => {
   logger.info({ signal }, 'shutting down');
@@ -85,7 +125,10 @@ const shutdown = (signal) => {
     process.exit(1);
   }, 10_000);
   t.unref();
-  const closeSlack = slackApp ? slackApp.stop().catch(() => {}) : Promise.resolve();
+  stopAllJobs();
+  const closeSlack = Promise.all(
+    slackApps.map(({ app }) => app.stop().catch(() => {})),
+  );
   closeSlack.finally(() => {
     server.close((err) => {
       if (err) {

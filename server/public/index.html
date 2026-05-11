@@ -26,6 +26,14 @@
           <h2>Projetos</h2>
           <ul id="projects-list" class="tree"></ul>
         </section>
+
+        <section>
+          <div class="row">
+            <h2>Jobs</h2>
+            <button id="new-job">+ novo</button>
+          </div>
+          <ul id="jobs-list" class="tree"></ul>
+        </section>
       </aside>
 
       <section class="editor">
@@ -63,6 +71,51 @@
         <div class="row right">
           <button value="cancel">cancelar</button>
           <button id="new-create" value="default">criar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="new-job-dialog">
+      <form method="dialog">
+        <h3>Novo job</h3>
+        <label>
+          Nome <small>(opcional)</small>
+          <input id="new-job-name" />
+        </label>
+        <label>
+          Cron <small>(ex.: 0 7 * * 1-5)</small>
+          <input id="new-job-expr" required />
+        </label>
+        <label>
+          Agente
+          <select id="new-job-agent"></select>
+        </label>
+        <label>
+          Mensagem
+          <textarea id="new-job-message" rows="3" required style="min-height: auto; resize: vertical;"></textarea>
+        </label>
+        <label>
+          Slack channel <small>(opcional)</small>
+          <input id="new-job-channel" placeholder="C0123 ou D0123" />
+        </label>
+        <label style="flex-direction: row; align-items: center; gap: 8px;">
+          <input id="new-job-catchup" type="checkbox" />
+          <span>Catch-up: executar disparos perdidos no startup (janela 12h)</span>
+        </label>
+        <div class="row right">
+          <button value="cancel">cancelar</button>
+          <button value="default">criar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="job-dialog">
+      <form method="dialog">
+        <h3 id="job-dialog-title">Job</h3>
+        <pre id="job-dialog-body" style="white-space: pre-wrap; max-height: 50vh; overflow: auto;"></pre>
+        <div class="row right">
+          <button id="job-delete-btn" value="cancel" type="button" class="danger">deletar</button>
+          <button value="default">fechar</button>
         </div>
       </form>
     </dialog>
