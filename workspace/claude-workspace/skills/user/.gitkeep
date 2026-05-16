@@ -1,3 +1,0 @@
-# Drop your personal Claude Code skills here. Each skill is its own subdirectory
-# with a SKILL.md describing it. Mounted to /home/claude/.claude/skills/user/
-# inside the container.

@@ -6,7 +6,7 @@ services:
       args:
         USER_UID: "${USER_UID:-501}"
         USER_GID: "${USER_GID:-501}"
-    image: open-claude-server:latest
+    image: claude-server:latest
     container_name: claude-workspace
     stdin_open: true
     tty: true
@@ -16,15 +16,15 @@ services:
       GH_TOKEN: ${GH_TOKEN:-}
       GITHUB_TOKEN: ${GH_TOKEN:-}
     volumes:
-      - ./workspace/claude-workspace/claude-config:/home/claude/.claude
-      - ./workspace/claude-workspace/skills:/home/claude/.claude/skills
-      - ./workspace/claude-workspace/projects:/workspace/projects
+      # Point WORKSPACE_DIR at your private workspace (defaults to the example template shipped with this repo).
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/claude-config:/home/claude/.claude
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/skills:/home/claude/.claude/skills
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/projects:/workspace/projects
       - ${HOME}/.claude-mem:/home/claude/.claude-mem
       # Sync host's per-project auto-memory (MEMORY.md + .md files) into the
-      # container-encoded path. Host source path uses the host's project dir
-      # encoding; override via PROJECT_MEMORY_HOST_DIR env in .env if you clone
-      # elsewhere. Target encoded from CLAUDE_CWD=/workspace/projects.
-      - ${PROJECT_MEMORY_HOST_DIR:-${HOME}/.claude/projects/-Users-nathallysouza-Documents-Projects-open-claude-server/memory}:/home/claude/.claude/projects/-workspace-projects/memory
+      # container-encoded path. Override PROJECT_MEMORY_HOST_DIR in your .env
+      # if your host clone path differs. Target encoded from CLAUDE_CWD=/workspace/projects.
+      - ${PROJECT_MEMORY_HOST_DIR:-${HOME}/.claude/projects/-workspace-projects/memory}:/home/claude/.claude/projects/-workspace-projects/memory
       - ${HOME}/.gitconfig:/home/claude/.gitconfig:ro
       - ${HOME}/.ssh:/tmp/host-ssh:ro
 
@@ -35,10 +35,10 @@ services:
       args:
         USER_UID: "${USER_UID:-501}"
         USER_GID: "${USER_GID:-501}"
-    image: open-claude-server:latest
-    container_name: open-claude-server
+    image: claude-server:latest
+    container_name: claude-server
     working_dir: /workspace/server
-    command: ["node", "src/index.js"]
+    command: ["npx", "tsx", "src/index.ts"]
     ports:
       - "127.0.0.1:${SERVER_PORT:-3010}:3010"
     env_file:
@@ -75,15 +75,11 @@ services:
       retries: 3
       start_period: 20s
     volumes:
-      - ./workspace/claude-workspace/claude-config:/home/claude/.claude
-      - ./workspace/claude-workspace/skills:/home/claude/.claude/skills
-      - ./workspace/claude-workspace/projects:/workspace/projects
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/claude-config:/home/claude/.claude
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/skills:/home/claude/.claude/skills
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/projects:/workspace/projects
       - ${HOME}/.claude-mem:/home/claude/.claude-mem
-      # Sync host's per-project auto-memory (MEMORY.md + .md files) into the
-      # container-encoded path. Host source path uses the host's project dir
-      # encoding; override via PROJECT_MEMORY_HOST_DIR env in .env if you clone
-      # elsewhere. Target encoded from CLAUDE_CWD=/workspace/projects.
-      - ${PROJECT_MEMORY_HOST_DIR:-${HOME}/.claude/projects/-Users-nathallysouza-Documents-Projects-open-claude-server/memory}:/home/claude/.claude/projects/-workspace-projects/memory
+      - ${PROJECT_MEMORY_HOST_DIR:-${HOME}/.claude/projects/-workspace-projects/memory}:/home/claude/.claude/projects/-workspace-projects/memory
       - ./server:/workspace/server
       - server_node_modules:/workspace/server/node_modules
 

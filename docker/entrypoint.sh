@@ -29,7 +29,7 @@ fi
 # our writable layer drops it on container recreate. The .claude/backups/ dir
 # IS mounted, so backups accumulate on host across runs.
 if [ ! -f "$HOME/.claude.json" ]; then
-  LATEST_BACKUP=$(ls -t "$HOME/.claude/backups/.claude.json.backup."* 2>/dev/null | head -1)
+  LATEST_BACKUP=$(ls -t "$HOME/.claude/backups/.claude.json.backup."* 2>/dev/null | head -1 || true)
   if [ -n "$LATEST_BACKUP" ]; then
     cp "$LATEST_BACKUP" "$HOME/.claude.json"
     chmod 600 "$HOME/.claude.json"

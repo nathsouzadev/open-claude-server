@@ -34,7 +34,7 @@ RUN npm install -g @anthropic-ai/claude-code claude-mem bun
 # changes to src/ don't require rebuild.
 COPY server/package.json server/package-lock.json* /workspace/server/
 WORKDIR /workspace/server
-RUN npm install --omit=dev
+RUN npm install
 WORKDIR /workspace
 
 RUN if getent group node >/dev/null; then groupdel node || true; fi \

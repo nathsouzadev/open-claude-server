@@ -3,11 +3,10 @@
 
 # Secrets & env (root-level catch-all)
 .env
+.env.local
 **/.env
 **/.env.local
-**/credentials
-**/*.key
-**/*.pem
+!**/.env.example
 
 # Docker overrides
 docker-compose.override.yml
@@ -19,7 +18,21 @@ server/node_modules/
 server/.env
 server/npm-debug.log*
 server/dist/
+server/data/
 
-# Claude Code credentials (defense in depth — primary rules in workspace/claude-workspace/.gitignore)
+# Workspace mounts — users point WORKSPACE_DIR at their private workspace repo.
+# The example template is committed; anything else under workspace/ is ignored.
+workspace/*
+!workspace/claude-workspace.example/
+workspace/claude-workspace.example/projects/*/
+workspace/claude-workspace.example/claude-config/.credentials*
+workspace/claude-workspace.example/claude-config/auth*
+workspace/claude-workspace.example/claude-config/sessions/
+workspace/claude-workspace.example/claude-config/cache/
+workspace/claude-workspace.example/claude-config/shell-snapshots/
+workspace/claude-workspace.example/claude-config/statsig/
+workspace/claude-workspace.example/claude-config/todos/
+
+# Claude Code credentials (defense in depth)
 **/.credentials.json
 **/.credentials
