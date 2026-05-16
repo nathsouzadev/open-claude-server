@@ -1,0 +1,152 @@
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
+    "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE": "cumulative",
+    "OTEL_METRIC_EXPORT_INTERVAL": "10000"
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(diff:*)",
+      "Bash(file:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git status:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(ps:*)",
+      "Bash(which:*)",
+      "Bash(pwd)",
+      "Bash(date:*)",
+      "Bash(uname:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker images:*)",
+      "Bash(jq:*)",
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(npm run test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(pnpm test:*)",
+      "Bash(yarn test:*)",
+      "Bash(pytest:*)",
+      "Bash(rtk grep:*)",
+      "Bash(rtk git diff:*)",
+      "Bash(rtk ls -la:*)",
+      "Bash(rtk git status:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.envrc)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./**/.envrc)",
+      "Read(./secrets/**)",
+      "Read(./**/secrets/**)",
+      "Read(./*.pem)",
+      "Read(./**/*.pem)",
+      "Read(./*.key)",
+      "Read(./**/*.key)",
+      "Read(./id_rsa*)",
+      "Read(./**/id_rsa*)",
+      "Edit(./.env)",
+      "Edit(./.envrc)",
+      "Edit(./.env.*)",
+      "Edit(./**/.env)",
+      "Edit(./**/.envrc)",
+      "Edit(./**/.env.*)",
+      "Edit(./secrets/**)",
+      "Edit(./**/secrets/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 __HOME__/.claude/hooks/project-lines-metric.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "__HOME__/.claude/hooks/rtk-rewrite.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"__HOME__/.claude/hooks/context-mode-cache-heal.mjs\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "code-review-graph@code-review-graph": true,
+    "context-mode@context-mode": true,
+    "superpowers@claude-plugins-official": false,
+    "superpowers@superpowers-marketplace": true,
+    "claude-mem@thedotmack": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "code-review-graph": {
+      "source": {
+        "source": "github",
+        "repo": "tirth8205/code-review-graph"
+      }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    },
+    "context-mode": {
+      "source": {
+        "source": "github",
+        "repo": "mksglu/context-mode"
+      }
+    },
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    }
+  },
+  "effortLevel": "high"
+}

@@ -1,0 +1,39 @@
+{
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true
+  },
+  "theme": "dark",
+  "model": "sonnet",
+  "extraKnownMarketplaces": {
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(jq:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(sudo:*)",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "CronGet",
+      "CronUpdate"
+    ]
+  }
+}

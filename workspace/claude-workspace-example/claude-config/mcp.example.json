@@ -1,0 +1,4 @@
+{
+  "_comment": "No standalone MCP servers were configured at ~/.claude/mcp.json on the source machine. MCPs are provided by the enabled plugins (see settings.example.json -> enabledPlugins). If you add custom MCPs, place tokens/keys as <PREENCHER> placeholders here and let setup.sh copy this to mcp.json.",
+  "mcpServers": {}
+}

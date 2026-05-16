@@ -17,9 +17,9 @@ services:
       GITHUB_TOKEN: ${GH_TOKEN:-}
     volumes:
       # Point WORKSPACE_DIR at your private workspace (defaults to the example template shipped with this repo).
-      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/claude-config:/home/claude/.claude
-      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/skills:/home/claude/.claude/skills
-      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/projects:/workspace/projects
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace}/claude-config:/home/claude/.claude
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace}/skills:/home/claude/.claude/skills
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace}/projects:/workspace/projects
       - ${HOME}/.claude-mem:/home/claude/.claude-mem
       # Sync host's per-project auto-memory (MEMORY.md + .md files) into the
       # container-encoded path. Override PROJECT_MEMORY_HOST_DIR in your .env
@@ -61,6 +61,9 @@ services:
       CLAUDE_MAX_INPUT_CHARS: ${CLAUDE_MAX_INPUT_CHARS:-50000}
       CLAUDE_MAX_CONCURRENCY: ${CLAUDE_MAX_CONCURRENCY:-3}
       CLAUDE_QUEUE_MAX_WAIT_MS: ${CLAUDE_QUEUE_MAX_WAIT_MS:-30000}
+      # Mode B (claude on host): consumed by scripts/claude-bridge.mjs.
+      CLAUDE_WORKER_URL: ${CLAUDE_WORKER_URL:-}
+      CLAUDE_WORKER_TOKEN: ${CLAUDE_WORKER_TOKEN:-}
       GH_TOKEN: ${GH_TOKEN:-}
       GITHUB_TOKEN: ${GH_TOKEN:-}
     restart: unless-stopped
@@ -75,13 +78,18 @@ services:
       retries: 3
       start_period: 20s
     volumes:
-      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/claude-config:/home/claude/.claude
-      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/skills:/home/claude/.claude/skills
-      - ${WORKSPACE_DIR:-./workspace/claude-workspace.example}/projects:/workspace/projects
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace}/claude-config:/home/claude/.claude
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace}/skills:/home/claude/.claude/skills
+      - ${WORKSPACE_DIR:-./workspace/claude-workspace}/projects:/workspace/projects
       - ${HOME}/.claude-mem:/home/claude/.claude-mem
       - ${PROJECT_MEMORY_HOST_DIR:-${HOME}/.claude/projects/-workspace-projects/memory}:/home/claude/.claude/projects/-workspace-projects/memory
       - ./server:/workspace/server
       - server_node_modules:/workspace/server/node_modules
+      # Mode B: host-claude-bridge script lives at /workspace/scripts/claude-bridge.mjs
+      - ./scripts:/workspace/scripts:ro
+    extra_hosts:
+      # Make host.docker.internal resolve on Linux (already works on macOS/Windows).
+      - "host.docker.internal:host-gateway"
 
 volumes:
   server_node_modules:

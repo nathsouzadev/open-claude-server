@@ -1,0 +1,12 @@
+# Projects to clone on a fresh machine.
+# Source machine inventory (2026-05-10): only repos with a real `git remote origin` are listed.
+# Pastas locais sem origin foram omitidas (buddy-class, claude-server, cowork, cxgenie, erp,
+# fiap, monitoring, monorepo, pass-in, poker, programaria, templates, buddy-class-old).
+projects:
+  - name: claude-server
+    repo: https://github.com/nathsouzadev/claude-server.git
+    branch: main
+
+  - name: superpowers
+    repo: https://github.com/obra/superpowers.git
+    branch: main
