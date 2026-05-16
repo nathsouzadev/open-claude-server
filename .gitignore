@@ -26,7 +26,7 @@ server/data/
 
 # Workspace mounts — the example template (workspace/claude-workspace-example/)
 # is committed; the bootstrapped copy (workspace/claude-workspace/) is gitignored.
-workspace/claude-workspace/
+**/workspace/claude-workspace
 
 # Claude Code credentials (defense in depth)
 **/.credentials.json
