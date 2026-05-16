@@ -36,18 +36,26 @@ else
 fi
 export CLAUDE_WORKER_TOKEN CLAUDE_WORKER_PORT
 
-# 3. Host claude CLI.
-c_blue "==> [3/6] host claude CLI"
-if ! command -v claude >/dev/null 2>&1; then
-  if command -v npm >/dev/null 2>&1; then
-    c_yellow "    installing @anthropic-ai/claude-code globally..."
-    npm install -g @anthropic-ai/claude-code
-  else
-    c_red "    'claude' missing and 'npm' not on PATH. Install Node + npm, then re-run."
+# 3. Host claude CLI + claude-mem.
+c_blue "==> [3/6] host claude CLI + claude-mem"
+if ! command -v npm >/dev/null 2>&1; then
+  if ! command -v claude >/dev/null 2>&1 || ! command -v claude-mem >/dev/null 2>&1; then
+    c_red "    'npm' not on PATH. Install Node + npm, then re-run."
     exit 1
   fi
 fi
-c_green "    $(claude --version 2>&1 | head -1)"
+if ! command -v claude >/dev/null 2>&1; then
+  c_yellow "    installing @anthropic-ai/claude-code globally..."
+  npm install -g @anthropic-ai/claude-code
+fi
+if ! command -v claude-mem >/dev/null 2>&1; then
+  c_yellow "    installing claude-mem globally..."
+  npm install -g claude-mem
+  # Register hooks in ~/.claude/settings.json (idempotent; safe to skip if it fails).
+  claude-mem install 2>&1 || c_yellow "    (claude-mem install non-fatal failure; run manually after 'claude /login')"
+fi
+c_green "    claude:     $(claude --version 2>&1 | head -1)"
+c_green "    claude-mem: $(claude-mem --version 2>&1 | head -1)"
 
 # 4. Build image if missing.
 c_blue "==> [4/6] image"
