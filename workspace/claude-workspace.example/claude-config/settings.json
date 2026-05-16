@@ -1,0 +1,8 @@
+{
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true
+  },
+  "env": {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"
+  }
+}
