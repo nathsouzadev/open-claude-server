@@ -14,6 +14,7 @@
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 
 const PORT = Number(process.env.CLAUDE_WORKER_PORT || 3011);
 const BIND = process.env.CLAUDE_WORKER_BIND || '0.0.0.0';
@@ -76,7 +77,15 @@ async function handleSpawn(req, res) {
 
   const args = Array.isArray(body.args) ? body.args.map(String) : [];
   const stdin = typeof body.stdin === 'string' ? body.stdin : '';
-  const cwd = typeof body.cwd === 'string' && body.cwd ? body.cwd : DEFAULT_CWD;
+  // The bridge forwards the container's cwd (e.g. /workspace/server) which may
+  // not exist on the host. Node's spawn errors with ENOENT on a missing cwd
+  // and the message reads "spawn claude ENOENT", masquerading as a missing
+  // binary. Fall back to DEFAULT_CWD when the requested path is absent.
+  const requestedCwd = typeof body.cwd === 'string' && body.cwd ? body.cwd : DEFAULT_CWD;
+  const cwd = existsSync(requestedCwd) ? requestedCwd : DEFAULT_CWD;
+  if (cwd !== requestedCwd) {
+    log(`[warn] cwd "${requestedCwd}" missing on host — falling back to "${cwd}"`);
+  }
   const timeoutMs = Number.isFinite(body.timeoutMs) ? body.timeoutMs : 600_000;
   const env = { ...process.env, ...(body.env && typeof body.env === 'object' ? body.env : {}) };
 

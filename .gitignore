@@ -31,3 +31,6 @@ server/data/
 # Claude Code credentials (defense in depth)
 **/.credentials.json
 **/.credentials
+
+# Personal SSH tunnel script (host-specific, never committed)
+observability/ssh-tunnel.sh

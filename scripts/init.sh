@@ -57,6 +57,13 @@ fi
 # claude-mem dir on host (mounted into both containers)
 mkdir -p "$HOME/.claude-mem"
 
+# Ensure ~/.gitconfig exists as a *file* on the host before compose starts.
+# docker-compose.yml bind-mounts it read-only into the containers; if it's
+# missing, Docker silently creates an empty *directory* in its place, which
+# breaks `git` on the host (warning: "unable to access '~/.gitconfig': Is a
+# directory"). Touching here is idempotent and safe.
+[ -e "$HOME/.gitconfig" ] || touch "$HOME/.gitconfig"
+
 # encoded project-memory dir
 ENCODED_DIR="$HOME/.claude/projects/-workspace-projects/memory"
 mkdir -p "$ENCODED_DIR"

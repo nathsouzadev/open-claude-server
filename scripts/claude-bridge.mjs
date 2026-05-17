@@ -8,7 +8,7 @@
 //   CLAUDE_WORKER_URL=http://host.docker.internal:3011
 //   CLAUDE_WORKER_TOKEN=<mesmo segredo do host>
 
-import { stdin, stdout, stderr, argv, env, exit } from 'node:process';
+import { stdin, stdout, stderr, argv, env, exit, cwd } from 'node:process';
 
 const URL_BASE = env.CLAUDE_WORKER_URL || 'http://host.docker.internal:3011';
 const TOKEN = env.CLAUDE_WORKER_TOKEN;
@@ -26,13 +26,30 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+// Forward a small allowlist of env vars from the bridge's own process env to
+// the host claude. The server already resolves per-agent overrides (e.g.
+// GH_TOKEN_DOROTHY -> GH_TOKEN) before spawning the bridge, so by the time we
+// run here, GH_TOKEN already holds the right value for this specific agent.
+// Without forwarding, the host worker would re-use its own (global) env and
+// the per-agent override would be lost.
+const ENV_PASSTHROUGH = ['GH_TOKEN', 'GITHUB_TOKEN'];
+
+const buildForwardEnv = () => {
+  const out = {};
+  for (const k of ENV_PASSTHROUGH) {
+    if (env[k]) out[k] = env[k];
+  }
+  return out;
+};
+
 (async () => {
   const args = argv.slice(2);
   const body = JSON.stringify({
     args,
     stdin: await readStdin(),
-    cwd: env.PWD,
+    cwd: cwd(),
     timeoutMs: TIMEOUT_MS,
+    env: buildForwardEnv(),
   });
 
   let resp;

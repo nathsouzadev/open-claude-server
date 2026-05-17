@@ -12,8 +12,10 @@ import agentsRouter from './routes/agents.js';
 import projectsRouter from './routes/projects.js';
 import jobsRouter from './routes/jobs.js';
 import usageRouter from './routes/usage.js';
+import metricsRouter from './routes/metrics.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
+import { metricsMiddleware } from './middleware/metrics.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { createSlackApps, type SlackAppHandle } from './slack/app.js';
 import {
@@ -81,7 +83,9 @@ app.use(cors({ origin: corsOrigin }));
 
 app.use(express.json({ limit: '1mb' }));
 app.use(pinoHttp({ logger }));
+app.use(metricsMiddleware);
 
+app.use(metricsRouter);
 app.use(healthRouter);
 app.use(authMiddleware, rateLimitMiddleware, chatRouter);
 app.use(authMiddleware, rateLimitMiddleware, agentsRouter);

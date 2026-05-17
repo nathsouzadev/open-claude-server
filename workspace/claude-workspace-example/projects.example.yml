@@ -3,6 +3,14 @@
 # Pastas locais sem origin foram omitidas (buddy-class, claude-server, cowork, cxgenie, erp,
 # fiap, monitoring, monorepo, pass-in, poker, programaria, templates, buddy-class-old).
 projects:
+  - name: inclient
+    repo: https://github.com/nathsouzadev/inclient.git
+    branch: main
+
+  - name: programaria-hub
+    repo: https://github.com/nathsouzadev/programaria-hub.git
+    branch: main
+
   - name: claude-server
     repo: https://github.com/nathsouzadev/claude-server.git
     branch: main

@@ -1,0 +1,54 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Filter to compose project containers only.
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
+        regex: ".+"
+        action: keep
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: container
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: service
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
+        target_label: compose_project
+      - source_labels: ["service"]
+        regex: "server"
+        target_label: job
+        replacement: "claude-api"
+      - source_labels: ["service"]
+        regex: "claude"
+        target_label: job
+        replacement: "claude-workspace"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: stream
+    pipeline_stages:
+      # pino emits JSON; surface common fields as labels and keep the rest as
+      # log line. Falls back gracefully for non-JSON lines.
+      - cri: {}
+      - json:
+          expressions:
+            level: level
+            req_id: req.id
+            method: req.method
+            url: req.url
+            status: res.statusCode
+            msg: msg
+      - labels:
+          level:
+          method:
+          status:

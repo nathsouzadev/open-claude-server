@@ -1,0 +1,86 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+  memory_limiter:
+    check_interval: 2s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+  # Default Claude Code resource attribute "service.name" already arrives as
+  # "claude-code" (set via OTEL_RESOURCE_ATTRIBUTES on the host worker). We
+  # mirror it to a "job" attribute so Loki gets the {job="claude-code"} label
+  # the existing dashboard queries expect.
+  resource/claude_job:
+    attributes:
+      - key: job
+        from_attribute: service.name
+        action: insert
+
+  # Tell the Loki exporter which attributes should be promoted to labels.
+  attributes/loki_labels:
+    actions:
+      - key: loki.attribute.labels
+        value: job,service.name,host.name
+        action: insert
+      - key: loki.resource.labels
+        value: job,service.name,host.name
+        action: insert
+
+exporters:
+  # Prometheus scrapes the collector via :8889/metrics. The dashboard's
+  # claude_code_* counters come straight from Claude Code's OTLP metrics
+  # export, passed through unchanged.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    const_labels:
+      source: otel-collector
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: false
+      job: true
+
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      address: 0.0.0.0:8888
+    logs:
+      level: info
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/claude_job, attributes/loki_labels, batch]
+      exporters: [loki]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]

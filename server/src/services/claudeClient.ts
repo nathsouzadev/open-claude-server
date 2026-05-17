@@ -162,6 +162,7 @@ const DISALLOWED_TOOLS = [
 
 const buildArgs = ({ sessionId }: { sessionId?: string }): string[] => {
   const args = ['--print', '--output-format', 'json'];
+  args.push('--permission-mode', 'bypassPermissions');
   args.push('--disallowed-tools', DISALLOWED_TOOLS.join(','));
   if (sessionId) args.push('--resume', sessionId);
   return args;
