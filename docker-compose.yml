@@ -103,5 +103,107 @@ services:
       # Make host.docker.internal resolve on Linux (already works on macOS/Windows).
       - "host.docker.internal:host-gateway"
 
+  # ---------- Observability stack ----------
+  # Single OTLP entry point. Claude Code on the host writes here
+  # (CLAUDE_CODE_ENABLE_TELEMETRY=1 + OTEL_EXPORTER_OTLP_ENDPOINT). The
+  # collector fans out: metrics -> Prometheus (scraped on :8889), logs -> Loki,
+  # traces -> Tempo.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.106.1
+    container_name: claude-otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    volumes:
+      - ./observability/otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    ports:
+      - "127.0.0.1:${OTEL_OTLP_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${OTEL_OTLP_HTTP_PORT:-4318}:4318"
+      - "127.0.0.1:8889:8889"   # Prometheus scrape target (claude-code metrics)
+      - "127.0.0.1:8888:8888"   # collector self-metrics
+      - "127.0.0.1:13133:13133" # health_check extension
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: claude-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: claude-loki
+    command: ["-config.file=/etc/loki/loki-config.yml"]
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: claude-tempo
+    command: ["-config.file=/etc/tempo/tempo-config.yml"]
+    volumes:
+      - ./observability/tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "127.0.0.1:${TEMPO_PORT:-3200}:3200"
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: claude-promtail
+    command: ["-config.file=/etc/promtail/promtail-config.yml"]
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - promtail_data:/tmp
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: claude-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_ANON_ENABLED:-false}
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    restart: unless-stopped
+
 volumes:
   server_node_modules:
+  prometheus_data:
+  loki_data:
+  tempo_data:
+  grafana_data:
+  promtail_data:

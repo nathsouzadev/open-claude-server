@@ -140,12 +140,32 @@ c_blue "==> [5/6] host worker on :$CLAUDE_WORKER_PORT"
 WORKER_PID_FILE="$REPO_ROOT/.host-claude-worker.pid"
 WORKER_LOG="$REPO_ROOT/.host-claude-worker.log"
 worker_running() { [ -f "$WORKER_PID_FILE" ] && kill -0 "$(cat "$WORKER_PID_FILE")" 2>/dev/null; }
+
+# OTLP defaults so spawned `claude` children export to the local collector
+# running in compose (otel-collector exposes 4317/4318 on 127.0.0.1). The
+# existing claude-monitoring.json dashboard depends on these series.
+: "${OTEL_OTLP_GRPC_PORT:=4317}"
+: "${CLAUDE_CODE_ENABLE_TELEMETRY:=1}"
+: "${OTEL_METRICS_EXPORTER:=otlp}"
+: "${OTEL_LOGS_EXPORTER:=otlp}"
+: "${OTEL_EXPORTER_OTLP_PROTOCOL:=grpc}"
+: "${OTEL_EXPORTER_OTLP_ENDPOINT:=http://localhost:${OTEL_OTLP_GRPC_PORT}}"
+: "${OTEL_LOG_USER_PROMPTS:=0}"
+: "${OTEL_RESOURCE_ATTRIBUTES:=service.name=claude-code,host.name=$(hostname),deployment.environment=host}"
+
 if worker_running; then
   c_yellow "    already running (pid $(cat "$WORKER_PID_FILE"))"
 else
   CLAUDE_WORKER_PORT="$CLAUDE_WORKER_PORT" \
   CLAUDE_WORKER_TOKEN="$CLAUDE_WORKER_TOKEN" \
   CLAUDE_BIN="${HOST_CLAUDE_BIN:-claude}" \
+  CLAUDE_CODE_ENABLE_TELEMETRY="$CLAUDE_CODE_ENABLE_TELEMETRY" \
+  OTEL_METRICS_EXPORTER="$OTEL_METRICS_EXPORTER" \
+  OTEL_LOGS_EXPORTER="$OTEL_LOGS_EXPORTER" \
+  OTEL_EXPORTER_OTLP_PROTOCOL="$OTEL_EXPORTER_OTLP_PROTOCOL" \
+  OTEL_EXPORTER_OTLP_ENDPOINT="$OTEL_EXPORTER_OTLP_ENDPOINT" \
+  OTEL_LOG_USER_PROMPTS="$OTEL_LOG_USER_PROMPTS" \
+  OTEL_RESOURCE_ATTRIBUTES="$OTEL_RESOURCE_ATTRIBUTES" \
   nohup node "$REPO_ROOT/scripts/host-claude-worker.mjs" >"$WORKER_LOG" 2>&1 &
   echo $! > "$WORKER_PID_FILE"
   sleep 1
@@ -156,6 +176,7 @@ else
     exit 1
   fi
   c_green "    pid $(cat "$WORKER_PID_FILE") (log: .host-claude-worker.log)"
+  c_green "    OTLP -> $OTEL_EXPORTER_OTLP_ENDPOINT (telemetry=$CLAUDE_CODE_ENABLE_TELEMETRY)"
 fi
 
 # 6. Bring up server only (claude-workspace container is not used in Mode B).
@@ -185,5 +206,7 @@ c_green "==> Mode B ready"
 echo
 echo "  server:   curl -s http://127.0.0.1:${SERVER_PORT:-3010}/health | jq"
 echo "  worker:   curl -s http://127.0.0.1:${CLAUDE_WORKER_PORT}/health"
+echo "  metrics:  curl -s http://127.0.0.1:${SERVER_PORT:-3010}/metrics | head"
+echo "  grafana:  http://127.0.0.1:${GRAFANA_PORT:-3000}  (admin/${GRAFANA_PASSWORD:-admin})"
 echo "  claude:   run 'claude' on the host directly"
 echo "  stop:     docker compose down && kill \$(cat .host-claude-worker.pid) && rm .host-claude-worker.pid"

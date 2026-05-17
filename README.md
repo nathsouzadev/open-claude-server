@@ -12,6 +12,7 @@ This repo contains **only the runtime** (HTTP API + container + scripts). Your p
 │   └── src/                             # routes, claudeClient, scheduler, slack, usage telemetry
 ├── docker/                              # Dockerfile + entrypoint
 ├── scripts/                             # claude-bridge, host-claude-worker, setup-host-claude
+├── observability/                       # grafana/prometheus/loki/tempo/otelcol/promtail config
 ├── docker-compose.yml                   # parameterised by ${WORKSPACE_DIR}
 ├── env.example                          # copy to .env, fill secrets, point WORKSPACE_DIR
 └── workspace/
@@ -305,6 +306,7 @@ Anything `WORKSPACE_DIR` points at must follow the layout in `workspace/claude-w
 - `GET /agents` — list agents from the mounted workspace
 - `POST /jobs` — create persistent cron job (catch-up firing, Slack delivery)
 - `GET /health`
+- `GET /metrics` — Prometheus exposition (http req counters/histograms, queue gauges, Claude runs/tokens/cost)
 
 Full env-var reference: `env.example`. Auth and rate limiting are **off by default** — turn them on before exposing the port.
 
@@ -317,6 +319,119 @@ Full env-var reference: `env.example`. Auth and rate limiting are **off by defau
 | `env.example`, schema, types | `projects.yml`, credentials, memory |
 
 The example workspace is a working stub — `docker compose up` works out of the box without ever cloning the private repo.
+
+## Observability (Grafana + Prometheus + Loki + Tempo)
+
+The `docker-compose.yml` ships a full observability stack alongside the server:
+
+| Service | Local URL | Purpose |
+|---|---|---|
+| Grafana | http://127.0.0.1:3000 (admin / admin) | dashboards + Explore |
+| Prometheus | http://127.0.0.1:9090 | metrics storage |
+| Loki | http://127.0.0.1:3100 | log storage |
+| Tempo | http://127.0.0.1:3200 | trace storage (ready, no API instrumentation yet) |
+| OTEL Collector | OTLP gRPC `:4317`, HTTP `:4318` | single entry point for the host |
+| Promtail | (internal) | scrapes Docker logs of compose services |
+
+Everything starts with the rest of the stack — no separate command needed:
+
+```bash
+docker compose up -d
+```
+
+### Provisioned dashboards (folder "Claude" in Grafana)
+
+- **Claude Code Monitoring** — replica of `claude-monitoring.json`. Queries `claude_code_*` Prometheus series and `{job="claude-code"}` in Loki. Populated by the `claude` CLI running on the host (see below).
+- **Claude API Monitoring** — HTTP req/s, error rate, latency p50/p95/p99 by route, Claude runs/duration/tokens/cost (sourced from `usageRecorder`, so it covers chat, slack, cron, and `/agents/:name/run`), queue inflight/waiting, plus a logs panel reading `{job="claude-api"}` from Loki.
+
+### Where data comes from
+
+- **API metrics** — `prom-client` exposes `/metrics` on the server. Prometheus scrapes `server:3010/metrics` every 15s.
+- **API logs** — Promtail scrapes the `claude-server` container via the Docker socket and writes to Loki under `{job="claude-api"}`. Labels promoted from pino JSON: `level`, `method`, `status`.
+- **Claude (host) metrics + logs** — emitted by the `claude` CLI via its built-in OTLP exporter when `CLAUDE_CODE_ENABLE_TELEMETRY=1`. The OTEL Collector receives on `:4317`/`:4318`, exposes metrics for Prometheus to scrape on `:8889`, and pushes logs to Loki with `{job="claude-code"}` (collector remaps `service.name=claude-code` to the `job` label).
+
+### Turning on host telemetry
+
+`./scripts/start-host.sh` already exports the OTEL env vars to the `host-claude-worker.mjs` process, so any Slack/cron/`/chat` request that goes through the worker is captured automatically.
+
+For `claude` invocations from your own terminals (not via the worker), the CLI inherits your shell env. Add this block to your `~/.bashrc` and/or `~/.zshrc`:
+
+```bash
+# >>> open-claude-server OTEL (Claude Code) >>>
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_LOG_USER_PROMPTS=0
+export OTEL_RESOURCE_ATTRIBUTES="service.name=claude-code,host.name=$(hostname),deployment.environment=host"
+# <<< open-claude-server OTEL (Claude Code) <<<
+```
+
+Notes:
+- Safe to keep enabled when the stack is down — Claude logs an OTLP connection error and continues without telemetry; it does **not** block the CLI.
+- Set `OTEL_LOG_USER_PROMPTS=1` if you want the prompt text in Loki (privacy trade-off).
+- `OTEL_EXPORTER_OTLP_ENDPOINT` must resolve to wherever the collector listens. Default assumes the stack runs locally; point it elsewhere for a remote backend.
+
+### Searching logs
+
+In Grafana → Explore:
+
+- **Claude (host)** — datasource `Loki`, query `{job="claude-code"}`. Extract structured fields: `{job="claude-code"} | json | type="assistant"`.
+- **API server** — datasource `Loki`, query `{job="claude-api"}`. Filter errors: `{job="claude-api"} | json | level >= 50`.
+
+### Ports + credentials
+
+All observability ports bind to `127.0.0.1` only. Override via `.env` (`GRAFANA_PORT`, `PROMETHEUS_PORT`, `LOKI_PORT`, `TEMPO_PORT`, `OTEL_OTLP_GRPC_PORT`, `OTEL_OTLP_HTTP_PORT`) and change the Grafana admin password (`GRAFANA_USER`, `GRAFANA_PASSWORD`) before exposing them.
+
+### Remote access via SSH tunnel
+
+Since the observability ports are bound to `127.0.0.1`, opening Grafana from another machine requires an SSH tunnel — no server-side change needed.
+
+A helper script at `observability/ssh-tunnel.sh` (gitignored — edit `REMOTE_USER`/`REMOTE_HOST` once for your environment) wraps the commands below:
+
+```bash
+./observability/ssh-tunnel.sh           # forward all (grafana + prometheus + loki + tempo)
+./observability/ssh-tunnel.sh grafana   # forward only grafana
+./observability/ssh-tunnel.sh stop      # kill any tunnel started by this script
+```
+
+Or use raw `ssh` directly, replacing `USER@HOST` with your SSH target.
+
+**Grafana only (most common):**
+
+```bash
+ssh -N -L 3000:127.0.0.1:3000 USER@HOST
+# then open http://localhost:3000 in your local browser
+```
+
+**Grafana + Prometheus + Loki + Tempo (if you want Explore to hit datasources directly from the client):**
+
+```bash
+ssh -N \
+  -L 3000:127.0.0.1:3000 \
+  -L 9090:127.0.0.1:9090 \
+  -L 3100:127.0.0.1:3100 \
+  -L 3200:127.0.0.1:3200 \
+  USER@HOST
+```
+
+Notes:
+- `-N` keeps SSH alive without opening a remote shell. The tunnel stays up as long as the command runs.
+- For Grafana alone you usually don't need to forward Prometheus/Loki/Tempo — Grafana proxies datasource queries server-side over the Docker network.
+- If the local ports are already in use, remap with `-L 13000:127.0.0.1:3000` and open `http://localhost:13000`.
+
+**Closing the tunnel:**
+
+- Foreground (`ssh -N -L ...` in a terminal): `Ctrl+C`.
+- Background (`ssh -fN -L ...`): find and kill the process.
+  ```bash
+  pgrep -af 'ssh.*-L 3000'      # confirm PID
+  pkill -f 'ssh.*-L 3000'        # kill it
+  ```
+- Inside an interactive SSH session: type `~.` at the start of a new line (enter, tilde, dot) to drop the session and all its forwards. `~#` lists active forwards, `~?` shows the escape-sequence help.
+
+For long-lived shared access, prefer `autossh` (auto-reconnects on drop) or a proper reverse proxy with auth — see "Ports + credentials" above before exposing any port on `0.0.0.0`.
 
 ## License
 
