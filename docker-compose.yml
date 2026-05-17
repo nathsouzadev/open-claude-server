@@ -11,6 +11,13 @@ services:
     stdin_open: true
     tty: true
     working_dir: /workspace
+    env_file:
+      # Forwards the whole root .env (including GH_TOKEN_<AGENT>/GITHUB_TOKEN_<AGENT>
+      # overrides) into the container so the interactive `claude` TUI can resolve
+      # per-agent tokens. Variables explicitly listed under `environment:` below
+      # still win on conflict.
+      - path: ./.env
+        required: false
     environment:
       TERM: xterm-256color
       GH_TOKEN: ${GH_TOKEN:-}
@@ -42,6 +49,11 @@ services:
     ports:
       - "127.0.0.1:${SERVER_PORT:-3010}:3010"
     env_file:
+      # Root .env first: brings in GH_TOKEN_<AGENT>/GITHUB_TOKEN_<AGENT> per-agent
+      # overrides used by services/agentEnv.ts. The server/.env stays as a per-
+      # service override slot; values in it win over the root .env.
+      - path: ./.env
+        required: false
       - path: ./server/.env
         required: false
     environment:
