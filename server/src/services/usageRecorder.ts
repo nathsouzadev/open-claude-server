@@ -30,5 +30,7 @@ export const record = async (entry: UsageEntry): Promise<void> => {
     cacheReadTokens: entry.cacheReadTokens,
     cacheCreationTokens: entry.cacheCreationTokens,
     costUsd: entry.costUsd,
+    slackUserId: entry.slackUserId,
+    slackChannelId: entry.slackChannelId,
   });
 };

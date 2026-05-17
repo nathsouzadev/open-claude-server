@@ -27,6 +27,19 @@
   "links": [],
   "panels": [
     {
+      "id": 50,
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -54,7 +67,7 @@
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "id": 1,
       "options": {
@@ -118,7 +131,7 @@
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 0
+        "y": 1
       },
       "id": 2,
       "options": {
@@ -146,12 +159,12 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(last_over_time(claude_code_token_usage_tokens_total[24h]))",
+          "expr": "sum(increase(claude_code_token_usage_tokens_total[$__range]))",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Tokens",
+      "title": "Total Tokens (period)",
       "type": "stat"
     },
     {
@@ -183,7 +196,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 0
+        "y": 1
       },
       "id": 3,
       "options": {
@@ -247,7 +260,7 @@
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 4
+        "y": 5
       },
       "id": 12,
       "options": {
@@ -311,7 +324,7 @@
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 4
+        "y": 5
       },
       "id": 13,
       "options": {
@@ -375,7 +388,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 4
+        "y": 5
       },
       "id": 4,
       "options": {
@@ -542,7 +555,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 9
       },
       "id": 14,
       "options": {
@@ -596,7 +609,7 @@
           "refId": "C"
         }
       ],
-      "title": "Sessions — Token Usage",
+      "title": "Sessions \u2014 Token Usage",
       "transformations": [
         {
           "id": "merge",
@@ -639,104 +652,45 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
           },
           "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          }
+          "unit": "short"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Added"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Removed"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 9
       },
       "id": 20,
       "options": {
-        "cellHeight": "sm",
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Added"
-          }
-        ]
+        "displayLabels": ["name", "percent"],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": ["value", "percent"]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "pluginVersion": "12.4.1",
       "targets": [
@@ -746,48 +700,30 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (project) (sum_over_time(claude_project_lines_added[$__range]))",
-          "format": "table",
+          "expr": "sum by (os_type) (increase(claude_code_token_usage_tokens_total[$__range]))",
           "instant": true,
-          "legendFormat": "Added",
+          "legendFormat": "{{os_type}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (project) (sum_over_time(claude_project_lines_removed[$__range]))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "Removed",
-          "refId": "B"
         }
       ],
-      "title": "Lines Changed by Project",
+      "title": "Tokens by Source",
       "transformations": [
         {
-          "id": "merge",
-          "options": {}
+          "id": "renameByRegex",
+          "options": {
+            "regex": "darwin",
+            "renamePattern": "Mac"
+          }
         },
         {
-          "id": "organize",
+          "id": "renameByRegex",
           "options": {
-            "excludeByName": {
-              "Time": true,
-              "Time 1": true,
-              "Time 2": true
-            },
-            "renameByName": {
-              "Value #A": "Added",
-              "Value #B": "Removed",
-              "project": "Project"
-            }
+            "regex": "linux",
+            "renamePattern": "Host"
           }
         }
       ],
-      "type": "table"
+      "type": "piechart"
     },
     {
       "datasource": {
@@ -850,7 +786,7 @@
         "h": 8,
         "w": 16,
         "x": 0,
-        "y": 16
+        "y": 17
       },
       "id": 5,
       "options": {
@@ -908,7 +844,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 16
+        "y": 17
       },
       "id": 6,
       "options": {
@@ -1017,7 +953,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 25
       },
       "id": 7,
       "options": {
@@ -1113,7 +1049,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 25
       },
       "id": 8,
       "options": {
@@ -1171,7 +1107,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 32
+        "y": 33
       },
       "id": 9,
       "options": {
@@ -1280,7 +1216,7 @@
         "h": 8,
         "w": 16,
         "x": 8,
-        "y": 32
+        "y": 33
       },
       "id": 10,
       "options": {
@@ -1386,7 +1322,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 41
       },
       "id": 21,
       "options": {
@@ -1419,7 +1355,7 @@
           "refId": "A"
         }
       ],
-      "title": "Token Usage Detail — Selected Time Range",
+      "title": "Token Usage Detail \u2014 Selected Time Range",
       "type": "timeseries"
     },
     {
@@ -1491,10 +1427,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.output_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1557,10 +1491,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"claude-code\"} | json type=\"type\" | type=\"assistant\" [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(count_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1624,10 +1556,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "(sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.output_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__range]))) / (sum(count_over_time({job=\"claude-code\"} | json type=\"type\" | type=\"assistant\" [$__range])))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "(sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__range]))) / sum(count_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1691,10 +1621,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__range])) / (sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__range])))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__range])) / (sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__range])) + sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__range])))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1757,10 +1685,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1823,10 +1749,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.output_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1889,10 +1813,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -1955,10 +1877,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -2034,8 +1954,8 @@
     },
     {
       "datasource": {
-        "type": "datasource",
-        "uid": "-- Mixed --"
+        "type": "loki",
+        "uid": "loki"
       },
       "fieldConfig": {
         "defaults": {
@@ -2074,7 +1994,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^Cost per request$/",
+          "fields": "",
           "values": false
         },
         "showPercentChange": false,
@@ -2085,34 +2005,13 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(claude_code_cost_usage_USD_total[$__range]))",
-          "hide": true,
-          "instant": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
             "type": "loki",
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"claude-code\"} | json type=\"type\" | type=\"assistant\" [$__range]))",
-          "hide": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cost_usd [$__range])) / sum(count_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" [$__range]))",
           "queryType": "instant",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "$A / $B",
-          "refId": "Cost per request",
-          "type": "math"
+          "refId": "A"
         }
       ],
       "title": "Avg Cost / Request",
@@ -2175,10 +2074,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.output_tokens\" | type=\"assistant\" | unwrap v [$__range])) / sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "instant": false,
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__range])) / sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__range]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -2273,10 +2170,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__interval]))",
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__interval]))",
           "legendFormat": "input",
-          "queryType": "range",
-          "range": true,
           "refId": "A"
         },
         {
@@ -2285,10 +2180,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.output_tokens\" | type=\"assistant\" | unwrap v [$__interval]))",
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__interval]))",
           "legendFormat": "output",
-          "queryType": "range",
-          "range": true,
           "refId": "B"
         },
         {
@@ -2297,10 +2190,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | unwrap v [$__interval]))",
-          "legendFormat": "cache_create",
-          "queryType": "range",
-          "range": true,
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__interval]))",
+          "legendFormat": "cache_creation",
           "refId": "C"
         },
         {
@@ -2309,10 +2200,8 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({job=\"claude-code\"} | json type=\"type\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__interval]))",
+          "expr": "sum(sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__interval]))",
           "legendFormat": "cache_read",
-          "queryType": "range",
-          "range": true,
           "refId": "D"
         }
       ],
@@ -2384,13 +2273,13 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (model) (sum_over_time({job=\"claude-code\"} | json type=\"type\", model=\"message.model\", v=\"message.usage.input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum by (model) (sum_over_time({job=\"claude-code\"} | json type=\"type\", model=\"message.model\", v=\"message.usage.output_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum by (model) (sum_over_time({job=\"claude-code\"} | json type=\"type\", model=\"message.model\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | unwrap v [$__range])) + sum by (model) (sum_over_time({job=\"claude-code\"} | json type=\"type\", model=\"message.model\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | unwrap v [$__range]))",
-          "legendFormat": "{{model}}",
-          "queryType": "instant",
+          "expr": "sum by (attributes_model) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__range])) + sum by (attributes_model) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__range])) + sum by (attributes_model) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__range])) + sum by (attributes_model) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__range]))",
+          "legendFormat": "{{attributes_model}}",
+          "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Tokens by Model (Detail)",
+      "title": "Tokens by Model",
       "type": "piechart"
     },
     {
@@ -2464,7 +2353,6 @@
           "mode": "multi",
           "sort": "desc"
         },
-        "xField": "project",
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
@@ -2476,46 +2364,13 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (project) (sum_over_time({job=\"claude-code\"} | json type=\"type\", cwd=\"cwd\", v=\"message.usage.input_tokens\" | type=\"assistant\" | label_format project=`{{ regexReplaceAll \".*/\" .cwd \"\" }}` | unwrap v [$__range]))",
-          "legendFormat": "Input",
-          "queryType": "instant",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "sum by (project) (sum_over_time({job=\"claude-code\"} | json type=\"type\", cwd=\"cwd\", v=\"message.usage.output_tokens\" | type=\"assistant\" | label_format project=`{{ regexReplaceAll \".*/\" .cwd \"\" }}` | unwrap v [$__range]))",
-          "legendFormat": "Output",
-          "queryType": "instant",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "sum by (project) (sum_over_time({job=\"claude-code\"} | json type=\"type\", cwd=\"cwd\", v=\"message.usage.cache_creation_input_tokens\" | type=\"assistant\" | label_format project=`{{ regexReplaceAll \".*/\" .cwd \"\" }}` | unwrap v [$__range]))",
-          "legendFormat": "Cache Creation",
-          "queryType": "instant",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "sum by (project) (sum_over_time({job=\"claude-code\"} | json type=\"type\", cwd=\"cwd\", v=\"message.usage.cache_read_input_tokens\" | type=\"assistant\" | label_format project=`{{ regexReplaceAll \".*/\" .cwd \"\" }}` | unwrap v [$__range]))",
-          "legendFormat": "Cache Read",
-          "queryType": "instant",
-          "refId": "D"
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "{{attributes_user_email}}",
+          "expr": "sum by (attributes_user_email) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_input_tokens [$__interval])) + sum by (attributes_user_email) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_output_tokens [$__interval])) + sum by (attributes_user_email) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_creation_tokens [$__interval])) + sum by (attributes_user_email) (sum_over_time({job=\"claude-code\"} | json | body=\"claude_code.api_request\" | unwrap attributes_cache_read_tokens [$__interval]))"
         }
       ],
-      "title": "Tokens by Project",
+      "title": "Tokens by User",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -2882,13 +2737,12 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{job=\"claude-code\"} | json type=\"type\", model=\"message.model\", input_tokens=\"message.usage.input_tokens\", output_tokens=\"message.usage.output_tokens\", cache_create=\"message.usage.cache_creation_input_tokens\", cache_read=\"message.usage.cache_read_input_tokens\", request_id=\"requestId\", session_id=\"sessionId\", cwd=\"cwd\", git_branch=\"gitBranch\" | type=\"assistant\" | __error__=\"\" | label_format project=`{{ regexReplaceAll \".*/\" .cwd \"\" }}`",
-          "maxLines": 5000,
+          "expr": "{job=\"claude-code\"} | json | body=\"claude_code.api_request\" | line_format \"model={{.attributes_model}} in={{.attributes_input_tokens}} out={{.attributes_output_tokens}} cache_create={{.attributes_cache_creation_tokens}} cache_read={{.attributes_cache_read_tokens}} cost=${{.attributes_cost_usd}} dur={{.attributes_duration_ms}}ms request_id={{.attributes_request_id}} session={{.attributes_session_id}}\"",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Requests — Per-Request Detail",
+      "title": "Requests \u2014 Per-Request Detail",
       "transformations": [
         {
           "id": "extractFields",

@@ -393,8 +393,12 @@ A helper script at `observability/ssh-tunnel.sh` (gitignored — edit `REMOTE_US
 ```bash
 ./observability/ssh-tunnel.sh           # forward all (grafana + prometheus + loki + tempo)
 ./observability/ssh-tunnel.sh grafana   # forward only grafana
+./observability/ssh-tunnel.sh otlp      # push: forward 4317/4318 so the local `claude`
+                                        #       sends telemetry into the remote collector
 ./observability/ssh-tunnel.sh stop      # kill any tunnel started by this script
 ```
+
+The `otlp` mode is for the inverse scenario: you run `claude` on a laptop/server **other than** the observability host and want its metrics/logs to land in the dashboards there. While the tunnel keeps running, your local `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` actually reaches the remote collector. The script prints the env vars you need to export on the data-source machine. Each host shows up in Grafana with its own `host_name` label — filter or group by `host_name` to compare.
 
 Or use raw `ssh` directly, replacing `USER@HOST` with your SSH target.
 

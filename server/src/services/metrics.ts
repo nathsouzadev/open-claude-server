@@ -31,17 +31,21 @@ export const httpRequestDuration = new client.Histogram({
   registers: [registry],
 });
 
+// slack_user_id / slack_channel_id are empty strings for non-slack runs so
+// Prometheus collapses them into a single series, keeping cardinality bounded
+// for small/medium workspaces. For very large slack tenants, prefer logs over
+// labels (drop these and aggregate from {job="claude-api"} in Loki).
 export const claudeRunsTotal = new client.Counter({
   name: 'claude_api_claude_runs_total',
   help: 'Number of Claude CLI invocations made via the API',
-  labelNames: ['agent', 'source', 'success', 'error'],
+  labelNames: ['agent', 'source', 'success', 'error', 'slack_user_id', 'slack_channel_id'],
   registers: [registry],
 });
 
 export const claudeRunDuration = new client.Histogram({
   name: 'claude_api_claude_run_duration_seconds',
   help: 'Duration of Claude CLI invocations made via the API',
-  labelNames: ['agent', 'source', 'success'],
+  labelNames: ['agent', 'source', 'success', 'slack_user_id', 'slack_channel_id'],
   buckets: [0.1, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 300, 600],
   registers: [registry],
 });
@@ -49,14 +53,14 @@ export const claudeRunDuration = new client.Histogram({
 export const claudeTokensTotal = new client.Counter({
   name: 'claude_api_claude_tokens_total',
   help: 'Token usage recorded for Claude runs made via the API',
-  labelNames: ['agent', 'source', 'model', 'type'],
+  labelNames: ['agent', 'source', 'model', 'type', 'slack_user_id', 'slack_channel_id'],
   registers: [registry],
 });
 
 export const claudeCostTotal = new client.Counter({
   name: 'claude_api_claude_cost_usd_total',
   help: 'Cost in USD recorded for Claude runs made via the API',
-  labelNames: ['agent', 'source', 'model'],
+  labelNames: ['agent', 'source', 'model', 'slack_user_id', 'slack_channel_id'],
   registers: [registry],
 });
 
@@ -105,18 +109,24 @@ export interface ClaudeRunMetric {
   cacheReadTokens?: number;
   cacheCreationTokens?: number;
   costUsd?: number;
+  slackUserId?: string;
+  slackChannelId?: string;
 }
 
 export const recordClaudeRun = (m: ClaudeRunMetric): void => {
   const success = String(m.success);
+  const slack_user_id = m.slackUserId ?? '';
+  const slack_channel_id = m.slackChannelId ?? '';
   claudeRunsTotal.inc({
     agent: m.agent,
     source: m.source,
     success,
     error: m.errorKind ?? '',
+    slack_user_id,
+    slack_channel_id,
   });
   claudeRunDuration.observe(
-    { agent: m.agent, source: m.source, success },
+    { agent: m.agent, source: m.source, success, slack_user_id, slack_channel_id },
     m.durationSeconds,
   );
   const tokens: Array<[string, number | undefined]> = [
@@ -128,14 +138,14 @@ export const recordClaudeRun = (m: ClaudeRunMetric): void => {
   for (const [type, value] of tokens) {
     if (value && value > 0) {
       claudeTokensTotal.inc(
-        { agent: m.agent, source: m.source, model: m.model, type },
+        { agent: m.agent, source: m.source, model: m.model, type, slack_user_id, slack_channel_id },
         value,
       );
     }
   }
   if (m.costUsd && m.costUsd > 0) {
     claudeCostTotal.inc(
-      { agent: m.agent, source: m.source, model: m.model },
+      { agent: m.agent, source: m.source, model: m.model, slack_user_id, slack_channel_id },
       m.costUsd,
     );
   }
