@@ -196,6 +196,25 @@ Full env-var reference: `env.example`. Auth and rate limiting are **off by defau
 
 The example workspace is a working stub — `docker compose up` works out of the box without ever cloning the private repo.
 
+## Troubleshooting
+
+### `error while loading shared libraries: libatomic.so.1: cannot open shared object file`
+
+Node's prebuilt binary depends on `libatomic1`, which is missing from minimal Linux installs and slim container bases. Install it with the matching package manager:
+
+```bash
+# Debian / Ubuntu
+apt-get update && apt-get install -y libatomic1
+
+# Alpine
+apk add --no-cache libatomic
+
+# RHEL / Fedora / Rocky
+dnf install -y libatomic
+```
+
+Then re-run the failing command (e.g. `npm install -g @anthropic-ai/claude-code` or `./scripts/start-host.sh`).
+
 ## License
 
 MIT. See `LICENSE`.

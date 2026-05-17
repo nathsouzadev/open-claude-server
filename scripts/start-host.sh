@@ -38,12 +38,7 @@ export CLAUDE_WORKER_TOKEN CLAUDE_WORKER_PORT
 
 # 3. Host claude CLI + claude-mem.
 c_blue "==> [3/6] host claude CLI + claude-mem"
-if ! command -v npm >/dev/null 2>&1; then
-  if ! command -v claude >/dev/null 2>&1 || ! command -v claude-mem >/dev/null 2>&1; then
-    c_red "    'npm' not on PATH. Install Node + npm, then re-run."
-    exit 1
-  fi
-fi
+"$REPO_ROOT/scripts/ensure-node.sh"
 if ! command -v claude >/dev/null 2>&1; then
   c_yellow "    installing @anthropic-ai/claude-code globally..."
   npm install -g @anthropic-ai/claude-code
