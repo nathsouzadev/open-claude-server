@@ -36,6 +36,21 @@ if [ ! -f "$HOME/.claude.json" ]; then
   fi
 fi
 
+# Reconcile server deps when package.json drifted from the named volume.
+# The Dockerfile seeds /workspace/server/node_modules into the `server_node_modules`
+# volume on FIRST creation only. Once the volume exists, image rebuilds don't
+# repopulate it, so deps added to package.json after the volume was created go
+# missing at runtime (ERR_MODULE_NOT_FOUND). Detect that drift and re-install.
+if [ -f /workspace/server/package.json ] && [ -d /workspace/server/node_modules ]; then
+  PKG=/workspace/server/package.json
+  LOCK=/workspace/server/node_modules/.package-lock.json
+  if [ ! -f "$LOCK" ] || [ "$PKG" -nt "$LOCK" ]; then
+    echo "[entrypoint] server deps drifted — running npm install..."
+    (cd /workspace/server && npm install --prefer-offline --no-audit --no-fund) \
+      || echo "[entrypoint] npm install failed (non-fatal — server may crash on missing deps)"
+  fi
+fi
+
 # Auto-install claude-mem hooks on first boot.
 # Detection: settings.json mentions claude-mem. Skipped on subsequent boots.
 SETTINGS="$HOME/.claude/settings.json"
